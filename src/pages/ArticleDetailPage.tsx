@@ -18,6 +18,8 @@ import {
   ThumbsUp,
   Send,
   Check,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 
 interface ArticleDetailPageProps {
@@ -71,6 +73,12 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
   const relatedArticles = ARTICLES.filter(
     (a) => a.id !== article.id && (a.category === article.category || a.featured)
   ).slice(0, 3);
+
+  // Previous and next article navigation
+  const currentIndex = ARTICLES.findIndex((a) => a.id === article.id);
+  const prevArticle = currentIndex > 0 ? ARTICLES[currentIndex - 1] : undefined;
+  const nextArticle =
+    currentIndex >= 0 && currentIndex < ARTICLES.length - 1 ? ARTICLES[currentIndex + 1] : undefined;
 
   // Font size multiplier
   const fontSizeClass =
@@ -357,6 +365,45 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Previous & Next Story Navigation */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 pt-6 border-t border-stone-200">
+            {prevArticle ? (
+              <button
+                type="button"
+                onClick={() => onSelectArticle(prevArticle.id)}
+                className="p-4 bg-stone-50 hover:bg-stone-100 rounded border border-stone-200 text-left group cursor-pointer transition-colors"
+              >
+                <span className="text-[11px] font-bold text-red-700 uppercase flex items-center gap-1 mb-1 font-sans">
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  मागील बातमी (Previous Story)
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2">
+                  {prevArticle.title}
+                </h4>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            {nextArticle ? (
+              <button
+                type="button"
+                onClick={() => onSelectArticle(nextArticle.id)}
+                className="p-4 bg-stone-50 hover:bg-stone-100 rounded border border-stone-200 text-right group cursor-pointer transition-colors"
+              >
+                <span className="text-[11px] font-bold text-red-700 uppercase flex items-center justify-end gap-1 mb-1 font-sans">
+                  पुढील बातमी (Next Story)
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2">
+                  {nextArticle.title}
+                </h4>
+              </button>
+            ) : (
+              <div />
+            )}
           </div>
 
           {/* Reader Feedback & Comments */}

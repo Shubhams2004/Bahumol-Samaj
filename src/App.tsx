@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter, navigateTo } from './utils/router';
 import { useReadingPreferences } from './utils/readingPreferences';
+import { newsService } from './services/newsService';
 import { getArticleById } from './data/newsArticles';
 import { TopHeader } from './components/common/TopHeader';
 import { BreakingTicker } from './components/common/BreakingTicker';

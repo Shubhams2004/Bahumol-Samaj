@@ -3,18 +3,19 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
-  // Determine base path for GitHub Pages deployment:
-  // 1. Explicit override via VITE_BASE_PATH (e.g. "/bahumol-samaj/")
-  // 2. In GitHub Actions, automatically detect from GITHUB_REPOSITORY ("<owner>/<repo>")
-  // 3. Fallback to relative path './' which safely resolves assets on any domain, subfolder, or preview URL
-  let base = './';
-  if (process.env.VITE_BASE_PATH) {
-    base = process.env.VITE_BASE_PATH;
-  } else if (process.env.GITHUB_REPOSITORY) {
-    const repoName = process.env.GITHUB_REPOSITORY.split('/')[1];
-    base = `/${repoName}/`;
-  }
+export default defineConfig(({ mode }) => {
+  // Configured specifically for repository: Shubhams2004/Bahumol-Samaj
+  // Target URL: https://shubhams2004.github.io/Bahumol-Samaj/
+  // In development, '/' serves cleanly on port 3000;
+  // In production build, base defaults to '/Bahumol-Samaj/' (or GITHUB_REPOSITORY / VITE_BASE_PATH if provided).
+  const repoName = process.env.GITHUB_REPOSITORY
+    ? process.env.GITHUB_REPOSITORY.split('/')[1]
+    : 'Bahumol-Samaj';
+  const defaultProductionBase = `/${repoName}/`;
+
+  const base =
+    process.env.VITE_BASE_PATH ||
+    (mode === 'development' ? '/' : defaultProductionBase);
 
   return {
     base,

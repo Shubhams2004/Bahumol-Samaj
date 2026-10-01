@@ -9,8 +9,31 @@ export interface RouteState {
   };
 }
 
-export const parseHash = (hash: string): RouteState => {
-  const cleanHash = hash.replace(/^#\/?/, '');
+export const getCurrentPathString = (): string => {
+  if (typeof window === 'undefined') return '';
+  if (window.location.hash) {
+    return window.location.hash.replace(/^#\/?/, '');
+  }
+  // Fallback for direct deep links handled by GitHub Pages 404.html
+  // Extracts subpath after /Bahumol-Samaj/
+  const pathname = window.location.pathname
+    .replace(/^\/Bahumol-Samaj\/?/i, '')
+    .replace(/^\//, '');
+
+  if (pathname && !pathname.endsWith('.html') && pathname !== 'index') {
+    // Seamlessly normalize to hash route for consistent SPA behavior
+    try {
+      window.history.replaceState(null, '', `${window.location.pathname.split('/')[0]}#/${pathname}`);
+    } catch {
+      window.location.hash = `#/${pathname}`;
+    }
+    return pathname;
+  }
+  return '';
+};
+
+export const parseHash = (hash?: string): RouteState => {
+  const cleanHash = (hash !== undefined ? hash.replace(/^#\/?/, '') : getCurrentPathString()).trim();
 
   if (!cleanHash) {
     return { page: 'home', params: {} };
