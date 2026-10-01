@@ -1,0 +1,6 @@
+{
+  "name": "Bahumol Samaj - Marathi Digital Newspaper",
+  "description": "बहुमोल समाज - निष्पक्ष, निर्भीक आणि विश्वासार्ह अग्रगण्य मराठी डिजिटल वृत्तपत्र. महाराष्ट्र, देश, आंतरराष्ट्रीय, राजकारण, शिक्षण, रोजगार आणि क्रीडा विश्वातील ताज्या बातम्या.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
