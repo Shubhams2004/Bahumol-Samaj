@@ -3,7 +3,7 @@ import { BREAKING_NEWS_ITEMS } from '../../data/tickerData';
 import { ChevronLeft, ChevronRight, Pause, Play, Zap } from 'lucide-react';
 
 interface BreakingTickerProps {
-  onSelectArticle: (articleId: string) => void;
+  onSelectArticle: (slugOrId: string) => void;
 }
 
 export const BreakingTicker: React.FC<BreakingTickerProps> = ({ onSelectArticle }) => {
@@ -36,9 +36,9 @@ export const BreakingTicker: React.FC<BreakingTickerProps> = ({ onSelectArticle 
     <div className="w-full bg-stone-900 text-stone-100 border-b border-stone-800 py-1.5 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
         {/* Left Badge */}
-        <div className="flex items-center gap-1.5 shrink-0 bg-red-700 text-white font-bold px-2.5 py-1 rounded text-[11px] uppercase tracking-wider animate-pulse">
-          <Zap className="w-3.5 h-3.5 fill-current" />
-          <span>ठळक घडामोडी</span>
+        <div className="flex items-center gap-1.5 shrink-0 bg-red-700 text-white font-bold px-2.5 py-0.5 rounded text-[11px] uppercase tracking-wider">
+          <Zap className="w-3.5 h-3.5 fill-current text-amber-300" />
+          <span>साप्ताहिक ठळक</span>
         </div>
 
         {/* Center Animated News Text */}
@@ -46,7 +46,7 @@ export const BreakingTicker: React.FC<BreakingTickerProps> = ({ onSelectArticle 
           className="flex-1 min-w-0 overflow-hidden cursor-pointer group"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          onClick={() => currentItem.articleId && onSelectArticle(currentItem.articleId)}
+          onClick={() => currentItem.articleSlug && onSelectArticle(currentItem.articleSlug)}
         >
           <div className="flex items-center gap-3 truncate">
             <span className="text-amber-400 text-[11px] font-mono shrink-0">

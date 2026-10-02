@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChevronRight, Shield, CheckCircle, HeartHandshake, Users, BookOpen } from 'lucide-react';
+import { CURRENT_WEEKLY_EDITION, EDITORIAL_TEAM } from '../data/editionData';
+import { ChevronRight, Shield, CheckCircle, HeartHandshake, Users, BookOpen, PenTool } from 'lucide-react';
 
 interface AboutPageProps {
   onNavigateHome: () => void;
@@ -8,24 +9,27 @@ interface AboutPageProps {
 
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigateContact }) => {
   return (
-    <div className="min-h-screen bg-stone-50 pb-16">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 pb-16 transition-colors">
       {/* Header Banner */}
-      <div className="bg-white border-b border-stone-200 py-8 px-4 sm:px-6">
+      <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 py-8 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-xs text-stone-500 mb-4 font-sans">
-            <button onClick={onNavigateHome} className="hover:text-red-700 cursor-pointer">
+          <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400 mb-4 font-sans">
+            <button onClick={onNavigateHome} className="hover:text-red-700 dark:hover:text-red-400 cursor-pointer">
               मुख्यपृष्ठ
             </button>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="font-semibold text-stone-800">आमच्याबद्दल</span>
+            <span className="font-semibold text-stone-800 dark:text-stone-200">आमच्याबद्दल</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-serif font-black text-stone-900 mb-3 tracking-tight">
-            बहुमोल समाज: विचार, निष्पक्षता आणि सत्यनिष्ठा
+          <div className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-widest font-serif mb-2">
+            <span>साप्ताहिक वृत्तपत्र • मुख्य संपादक: {CURRENT_WEEKLY_EDITION.editorInChief}</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-serif font-black text-stone-900 dark:text-white mb-3 tracking-tight">
+            बहुमोल समाज: निष्पक्ष, निर्भीक आणि सडेतोड साप्ताहिक
           </h1>
-          <p className="text-base text-stone-600 font-sans leading-relaxed">
-            महाराष्ट्राच्या ज्वलंत समस्या, ग्रामीण व शहरी जनतेचे प्रश्न आणि राष्ट्राच्या प्रगतीचा वेध घेणारे स्वतंत्र डिजिटल वृत्तपत्र.
+          <p className="text-base text-stone-600 dark:text-stone-300 font-sans leading-relaxed">
+            महाराष्ट्रातील उपेक्षित, शेतकरी, कामगार आणि सुशिक्षित तरुणांच्या न्याय्य हक्कांसाठी निरंतर लढणारा वैचारिक मंच.
           </p>
         </div>
       </div>
@@ -33,132 +37,116 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigate
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-10 space-y-10">
         {/* Section 1: Introduction & Philosophy */}
-        <section className="bg-white p-6 sm:p-8 rounded border border-stone-200 shadow-xs">
+        <section className="bg-white dark:bg-stone-900 p-6 sm:p-8 rounded border border-stone-200 dark:border-stone-800 shadow-xs">
           <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-5 h-5 text-red-700" />
-            <h2 className="text-xl font-bold font-serif text-stone-900">
-              आमची भूमिका व उद्देश (Our Mission)
+            <BookOpen className="w-5 h-5 text-red-700 dark:text-red-400" />
+            <h2 className="text-xl font-bold font-serif text-stone-900 dark:text-white">
+              साप्ताहिक भूमिका व संपादकीय मूल्ये (Our Editorial Vision)
             </h2>
           </div>
-          <div className="space-y-4 text-stone-700 text-sm sm:text-base leading-relaxed font-sans">
+          <div className="space-y-4 text-stone-700 dark:text-stone-300 text-sm sm:text-base leading-relaxed font-sans">
             <p>
-              <strong className="text-stone-900 font-serif">‘बहुमोल समाज’</strong> हे केवळ बातम्या देणारे माध्यम नसून,
-              समाजातील उपेक्षित, कष्टकरी, शेतकरी आणि नवयुवकांच्या आशा-आकांक्षांना आवाज देणारा बुलंद मंच आहे.
-              महाराष्ट्राला संतांची, समाजसुधारकांची आणि शिव-शाहू-फुले-आंबेडकरांच्या पुरोगामी विचारांची महान परंपरा लाभली आहे.
-              याच विचारांचे जतन करत निष्पक्ष, निर्भीक आणि सडेतोड पत्रकारिता करणे हे आमचे ध्येय आहे.
+              <strong className="text-stone-900 dark:text-white font-serif">‘बहुमोल समाज’</strong> हे केवळ बातम्यांचे संकलन नसून,
+              समाजातील ज्वलंत समस्या, शासकीय धोरणे आणि सामान्य जनतेच्या रोजच्या जगण्यावर प्रकाश टाकणारे
+              अग्रगण्य मराठी साप्ताहिक वृत्तपत्र आहे.
             </p>
             <p>
-              आजच्या वेगवान डिजिटल युगात अफवा, दिशाभूल आणि पेड न्यूजचे मोठे आव्हान उभे आहे. अशा काळात
-              सत्याची कसून पडताळणी करून वाचकांपर्यंत केवळ खात्रीशीर आणि तथ्यपूर्ण माहिती पोहोचवण्यासाठी आमची
-              संपादकीय चमू २४ तास कार्यरत आहे.
+              मुख्य संपादक <strong className="text-stone-900 dark:text-white">दिलीप सोनाळे</strong> यांच्या नेतृत्वाखालील
+              संपादकीय चमू कोणत्याही सत्ताधारी, कॉर्पोरेट अथवा वैयक्तिक दबावाला बळी न पडता वस्तुनिष्ठ विश्लेषणावर ठाम राहते.
+              छत्रपती शिवाजी महाराज, महात्मा जोतीराव फुले, राजर्षी छत्रपती शाहू महाराज आणि भारतरत्न डॉ. बाबासाहेब आंबेडकर
+              यांच्या पुरोगामी सामाजिक विचारांची मशाल तेवत ठेवणे हाच आमचा ध्यास आहे.
             </p>
           </div>
         </section>
 
         {/* Section 2: Core Values Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded border border-stone-200 shadow-xs">
-            <div className="w-10 h-10 rounded bg-red-50 text-red-700 flex items-center justify-center mb-3">
+          <div className="bg-white dark:bg-stone-900 p-6 rounded border border-stone-200 dark:border-stone-800 shadow-xs">
+            <div className="w-10 h-10 rounded bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400 flex items-center justify-center mb-3">
               <Shield className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold font-serif text-stone-900 mb-2">
-              १. संपूर्ण निष्पक्षता
+            <h3 className="text-base font-bold font-serif text-stone-900 dark:text-white mb-2">
+              १. निर्भीक निष्पक्षता
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed font-sans">
-              कोणत्याही राजकीय पक्ष, कॉर्पोरेट दबाव किंवा वैयक्तिक हितसंबंधांपासून अलिप्त राहून केवळ लोकहिताला प्राधान्य.
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed font-sans">
+              कोणत्याही राजकीय पक्षाचे मुखपत्र न बनता केवळ लोकहित आणि जनसामान्यांच्या बाजूने सडेतोड मांडणी.
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded border border-stone-200 shadow-xs">
-            <div className="w-10 h-10 rounded bg-amber-50 text-amber-700 flex items-center justify-center mb-3">
+          <div className="bg-white dark:bg-stone-900 p-6 rounded border border-stone-200 dark:border-stone-800 shadow-xs">
+            <div className="w-10 h-10 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 flex items-center justify-center mb-3">
               <CheckCircle className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold font-serif text-stone-900 mb-2">
-              २. सत्यता व पडताळणी
+            <h3 className="text-base font-bold font-serif text-stone-900 dark:text-white mb-2">
+              २. सत्यता व सखोलता
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed font-sans">
-              कोणतीही सनसनाटी न माजवता माहितीची विश्वासार्हता तपासून अधिकृत पुराव्यांसह बातमी प्रसिद्ध करण्याचा नियम.
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed font-sans">
+              साप्ताहिक स्वरूपाचा लाभ घेत प्रत्येक घडामोडीच्या मुळाशी जाऊन तथ्यपूर्ण, अभ्यासपूर्ण माहिती देणे.
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded border border-stone-200 shadow-xs">
-            <div className="w-10 h-10 rounded bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
+          <div className="bg-white dark:bg-stone-900 p-6 rounded border border-stone-200 dark:border-stone-800 shadow-xs">
+            <div className="w-10 h-10 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
               <HeartHandshake className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold font-serif text-stone-900 mb-2">
+            <h3 className="text-base font-bold font-serif text-stone-900 dark:text-white mb-2">
               ३. सामाजिक बांधिलकी
             </h3>
-            <p className="text-xs text-stone-600 leading-relaxed font-sans">
-              शिक्षण, रोजगार, शेती आणि सामान्य नागरिकांच्या मूलभूत समस्यांवर उपाय शोधण्यासाठी सातत्यपूर्ण पाठपुरावा.
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed font-sans">
+              शेतकरी आत्महत्या, बेरोजगारी, पाणी टंचाई, शिक्षण आणि आरोग्याच्या प्रश्नांवर निरंतर पाठपुरावा.
             </p>
           </div>
         </section>
 
         {/* Section 3: Editorial Team */}
-        <section className="bg-white p-6 sm:p-8 rounded border border-stone-200 shadow-xs">
+        <section className="bg-white dark:bg-stone-900 p-6 sm:p-8 rounded border border-stone-200 dark:border-stone-800 shadow-xs">
           <div className="flex items-center gap-2 mb-6">
-            <Users className="w-5 h-5 text-red-700" />
-            <h2 className="text-xl font-bold font-serif text-stone-900">
-              संपादकीय नेतृत्व (Editorial Board)
+            <Users className="w-5 h-5 text-red-700 dark:text-red-400" />
+            <h2 className="text-xl font-bold font-serif text-stone-900 dark:text-white">
+              संपादकीय मंडळ (Editorial Leadership)
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
-                मुख्य संपादक (Editor-in-Chief)
-              </span>
-              <h4 className="text-lg font-bold font-serif text-stone-900">भास्करराव मोहिते</h4>
-              <p className="text-xs text-stone-600 mt-1 font-sans">
-                मराठी वृत्तपत्र क्षेत्रातील ३० वर्षांचा प्रदीर्घ अनुभव. राजकीय व सामाजिक विश्लेषणाचे गाढे अभ्यासक.
+            <div className="p-4 bg-stone-50 dark:bg-stone-800/60 rounded border border-stone-200 dark:border-stone-700">
+              <div className="flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-400 font-sans mb-1">
+                <PenTool className="w-3.5 h-3.5" />
+                <span>{EDITORIAL_TEAM.editorInChief.role}</span>
+              </div>
+              <h4 className="text-lg font-bold font-serif text-stone-900 dark:text-white">
+                {EDITORIAL_TEAM.editorInChief.name}
+              </h4>
+              <p className="text-xs text-stone-600 dark:text-stone-400 mt-1 font-sans">
+                {EDITORIAL_TEAM.editorInChief.experience}. महाराष्ट्राच्या पुरोगामी चळवळींचे अभ्यासक आणि स्वतंत्र पत्रकार.
               </p>
             </div>
 
-            <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
-                निवासी संपादक (पुणे ब्युरो)
-              </span>
-              <h4 className="text-lg font-bold font-serif text-stone-900">आनंद जोशी</h4>
-              <p className="text-xs text-stone-600 mt-1 font-sans">
-                प्रशासकीय घडामोडी, शिक्षण व स्पर्धा परीक्षा मार्गदर्शक. डिजिटल मीडिया तज्ज्ञ.
-              </p>
-            </div>
-
-            <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
-                ब्युरो चीफ (मुंबई व कोकण)
-              </span>
-              <h4 className="text-lg font-bold font-serif text-stone-900">संजय कुलकर्णी</h4>
-              <p className="text-xs text-stone-600 mt-1 font-sans">
-                मंत्रालय व विधानभवन वार्तांकन, पायाभूत सुविधा व आर्थिक धोरणांचे विश्लेषक.
-              </p>
-            </div>
-
-            <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
-                विशेष प्रतिनिधी (विज्ञान-तंत्रज्ञान)
-              </span>
-              <h4 className="text-lg font-bold font-serif text-stone-900">डॉ. अनिता देशपांडे</h4>
-              <p className="text-xs text-stone-600 mt-1 font-sans">
-                पर्यावरण, ऊर्जा आणि उदयोन्मुख तंत्रज्ञान संशोधनावर नियमित स्तंभलेखन.
-              </p>
-            </div>
+            {EDITORIAL_TEAM.residentEditors.map((ed) => (
+              <div key={ed.name} className="p-4 bg-stone-50 dark:bg-stone-800/60 rounded border border-stone-200 dark:border-stone-700">
+                <span className="text-xs font-bold text-stone-500 dark:text-stone-400 font-sans block mb-1">
+                  {ed.role} ({ed.location})
+                </span>
+                <h4 className="text-base font-bold font-serif text-stone-900 dark:text-white">
+                  {ed.name}
+                </h4>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* CTA */}
-        <section className="bg-stone-900 text-white p-8 rounded text-center space-y-4">
+        <section className="bg-stone-900 dark:bg-stone-900 text-white p-8 rounded text-center space-y-4 border border-stone-800">
           <h3 className="text-xl sm:text-2xl font-bold font-serif">
-            आपल्याकडेही बातमी किंवा लेख आहे का?
+            आपल्याकडेही बातमी किंवा संशोधन लेख आहे का?
           </h3>
           <p className="text-xs sm:text-sm text-stone-300 max-w-lg mx-auto font-sans">
-            स्थानिक समस्या, यशोगाथा किंवा वैचारिक लेख आमच्या संपादकीय मंडळाकडे पाठवा.
+            स्थानिक समस्या, यशोगाथा किंवा वैचारिक लेख थेट मुख्य संपादक दिलीप सोनाळे यांच्याकडे पाठवा.
           </p>
           <button
             onClick={onNavigateContact}
             className="px-6 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded cursor-pointer transition-colors font-sans"
           >
-            आमच्याशी संपर्क साधा &rarr;
+            संपादकीय संपर्क &rarr;
           </button>
         </section>
       </div>

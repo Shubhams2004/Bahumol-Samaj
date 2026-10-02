@@ -5,7 +5,7 @@ import { LatestNewsFeed } from '../components/home/LatestNewsFeed';
 import { SidebarContent } from '../components/home/SidebarContent';
 import {
   getLeadArticle,
-  getSupportingArticles,
+  getSecondaryLeadArticles,
   getLatestArticles,
   getTrendingArticles,
   getArticlesByCategory,
@@ -14,12 +14,12 @@ import {
 import { CategorySlug } from '../types/news';
 
 interface HomePageProps {
-  onSelectArticle: (articleId: string) => void;
+  onSelectArticle: (slugOrId: string) => void;
   onSelectCategory: (slug: string) => void;
   onNavigateEpaper: () => void;
   onNavigateContact: () => void;
-  isBookmarked: (id: string) => boolean;
-  onToggleBookmark: (id: string) => void;
+  isBookmarked: (slugOrId: string) => boolean;
+  onToggleBookmark: (slugOrId: string) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -31,42 +31,43 @@ export const HomePage: React.FC<HomePageProps> = ({
   onToggleBookmark,
 }) => {
   const leadStory = getLeadArticle();
-  const supportingStories = getSupportingArticles();
+  const secondaryLeadStories = getSecondaryLeadArticles();
   const latestArticles = getLatestArticles(8);
   const trendingArticles = getTrendingArticles();
   const mostReadArticles = ARTICLES.filter((a) => a.viewsCount > 15000);
   const editorialArticle = ARTICLES.find((a) => a.category === 'editorial');
 
+  // All weekly sections to showcase on homepage
   const sectionsToDisplay: CategorySlug[] = [
     'maharashtra',
     'politics',
+    'economy',
     'education',
-    'jobs',
     'tech',
+    'desh',
     'sports',
     'entertainment',
-    'india',
     'world',
   ];
 
   return (
-    <div className="min-h-screen bg-stone-50 pb-16">
-      {/* 1. Main Lead Story Grid */}
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 pb-16 transition-colors">
+      {/* 1. Main Lead Story & Secondary Headline Grid */}
       <LeadStorySection
         leadStory={leadStory}
-        supportingStories={supportingStories}
+        supportingStories={secondaryLeadStories}
         onSelectArticle={onSelectArticle}
         onSelectCategory={onSelectCategory}
         isBookmarked={isBookmarked}
         onToggleBookmark={onToggleBookmark}
       />
 
-      {/* 2. Main Content Grid (8 Cols Sections + 4 Cols Sidebar) */}
+      {/* 2. Main Body Grid: 8 Cols Sections + 4 Cols Sidebar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main News Columns (8 cols) */}
           <div className="lg:col-span-8">
-            {/* Latest Updates Feed */}
+            {/* Weekly News Feed */}
             <LatestNewsFeed
               articles={latestArticles}
               onSelectArticle={onSelectArticle}
@@ -91,7 +92,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
 
-          {/* Sidebar / Secondary Content (4 cols) */}
+          {/* Sidebar Content (4 cols) */}
           <div className="lg:col-span-4">
             <SidebarContent
               trendingArticles={trendingArticles}

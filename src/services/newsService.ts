@@ -1,45 +1,58 @@
 /**
  * @file newsService.ts
- * Data Layer abstraction separating UI components from the underlying data source.
- * Currently uses local structured mock data, but designed for seamless future migration
- * to Cloudflare Workers, Firestore, REST APIs, or headless CMS without modifying UI components.
+ * Centralized content abstraction layer for Bahumol Samaj Weekly Newspaper.
+ * Encapsulates all data access (Edition -> Sections -> Articles).
+ * Designed for future drop-in replacement by Cloudflare Workers, KV, D1, or external API.
  */
 
-import { Article, BreakingItem, Category, CategorySlug } from '../types/news';
+import { Article, BreakingItem, Category, CategorySlug, WeeklyEdition } from '../types/news';
 import {
   ARTICLES,
+  getArticleBySlug as fetchArticleBySlug,
   getArticleById as fetchArticleById,
   getArticlesByCategory as fetchArticlesByCategory,
   getLeadArticle as fetchLeadArticle,
-  getSupportingArticles as fetchSupportingArticles,
+  getSecondaryLeadArticles as fetchSecondaryLeadArticles,
   getLatestArticles as fetchLatestArticles,
   getTrendingArticles as fetchTrendingArticles,
   searchArticles as fetchSearchArticles,
 } from '../data/newsArticles';
 import { ALL_CATEGORIES, getCategoryBySlug as fetchCategoryBySlug } from '../data/categories';
 import { BREAKING_NEWS_ITEMS } from '../data/tickerData';
+import { CURRENT_WEEKLY_EDITION, EDITORIAL_TEAM } from '../data/editionData';
 
 export interface NewsRepository {
+  getCurrentEdition(): WeeklyEdition;
+  getEditorialTeam(): typeof EDITORIAL_TEAM;
   getAllArticles(): Promise<Article[]>;
+  getArticleBySlug(slug: string): Promise<Article | undefined>;
   getArticleById(id: string): Promise<Article | undefined>;
   getArticlesByCategory(category: CategorySlug | string): Promise<Article[]>;
   getLeadStory(): Promise<Article>;
-  getSupportingStories(limit?: number): Promise<Article[]>;
+  getSecondaryLeadStories(): Promise<Article[]>;
   getLatestStories(limit?: number): Promise<Article[]>;
   getTrendingStories(limit?: number): Promise<Article[]>;
-  search(query: string): Promise<Article[]>;
+  search(query: string, categoryFilter?: string): Promise<Article[]>;
   getCategories(): Category[];
   getCategoryBySlug(slug: string): Category | undefined;
   getBreakingUpdates(): BreakingItem[];
 }
 
-/**
- * Local Data Provider Implementation
- * Future migration path: Replace or swap provider with CloudflareWorkerNewsProvider or ApiNewsProvider
- */
 export const newsService: NewsRepository = {
+  getCurrentEdition(): WeeklyEdition {
+    return CURRENT_WEEKLY_EDITION;
+  },
+
+  getEditorialTeam() {
+    return EDITORIAL_TEAM;
+  },
+
   async getAllArticles(): Promise<Article[]> {
     return ARTICLES;
+  },
+
+  async getArticleBySlug(slug: string): Promise<Article | undefined> {
+    return fetchArticleBySlug(slug);
   },
 
   async getArticleById(id: string): Promise<Article | undefined> {
@@ -54,8 +67,8 @@ export const newsService: NewsRepository = {
     return fetchLeadArticle();
   },
 
-  async getSupportingStories(limit: number = 3): Promise<Article[]> {
-    return fetchSupportingArticles().slice(0, limit);
+  async getSecondaryLeadStories(): Promise<Article[]> {
+    return fetchSecondaryLeadArticles();
   },
 
   async getLatestStories(limit: number = 8): Promise<Article[]> {
@@ -66,8 +79,8 @@ export const newsService: NewsRepository = {
     return fetchTrendingArticles().slice(0, limit);
   },
 
-  async search(query: string): Promise<Article[]> {
-    return fetchSearchArticles(query);
+  async search(query: string, categoryFilter?: string): Promise<Article[]> {
+    return fetchSearchArticles(query, categoryFilter);
   },
 
   getCategories(): Category[] {

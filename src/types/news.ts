@@ -1,10 +1,10 @@
 export type CategorySlug =
   | 'maharashtra'
-  | 'india'
+  | 'desh'
   | 'world'
   | 'politics'
+  | 'economy'
   | 'education'
-  | 'jobs'
   | 'tech'
   | 'sports'
   | 'entertainment'
@@ -24,6 +24,7 @@ export interface Quote {
 
 export interface Article {
   id: string;
+  slug: string;
   title: string;
   subtitle?: string;
   excerpt: string;
@@ -42,7 +43,7 @@ export interface Article {
   sharesCount: number;
   tags: string[];
   quotes?: Quote[];
-  content: string[]; // Array of paragraphs
+  content: string[]; // Array of authentic Marathi editorial paragraphs
 }
 
 export interface Category {
@@ -51,6 +52,18 @@ export interface Category {
   nameEnglish: string;
   description: string;
   accentColor: string;
+}
+
+export interface WeeklyEdition {
+  id: string;
+  volume: number; // वर्ष (Volume)
+  issue: number; // अंक (Issue)
+  dateRange: string; // '१ ते ७ ऑक्टोबर २०२६'
+  fullDateLabel: string;
+  editorInChief: string; // 'दिलीप सोनाळे'
+  rniRegistration: string;
+  establishedYear: number;
+  headlineQuote: string;
 }
 
 export interface Comment {
@@ -67,7 +80,8 @@ export interface BreakingItem {
   title: string;
   timestamp: string;
   category: CategorySlug;
-  articleId?: string;
+  articleSlug: string;
 }
 
 export type EditionCity = 'पुणे' | 'मुंबई' | 'नागपूर' | 'नाशिक' | 'छत्रपती संभाजीनगर';
+export type ThemeMode = 'light' | 'dark';

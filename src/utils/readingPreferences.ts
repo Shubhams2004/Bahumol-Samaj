@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { EditionCity } from '../types/news';
+import { EditionCity, ThemeMode } from '../types/news';
 
 export type FontSizeOption = 'sm' | 'md' | 'lg';
 
@@ -7,15 +7,33 @@ const STORAGE_KEYS = {
   FONT_SIZE: 'bahumol_font_size',
   BOOKMARKS: 'bahumol_bookmarks',
   EDITION: 'bahumol_edition',
+  THEME: 'bahumol_theme',
 };
 
 export const useReadingPreferences = () => {
   const [fontSize, setFontSizeState] = useState<FontSizeOption>('md');
   const [bookmarks, setBookmarksState] = useState<string[]>([]);
   const [edition, setEditionState] = useState<EditionCity>('पुणे');
+  const [theme, setThemeState] = useState<ThemeMode>('light');
 
   useEffect(() => {
     try {
+      const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as ThemeMode;
+      if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
+        setThemeState(savedTheme);
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+          setThemeState('dark');
+          document.documentElement.classList.add('dark');
+        }
+      }
+
       const savedFontSize = localStorage.getItem(STORAGE_KEYS.FONT_SIZE) as FontSizeOption;
       if (savedFontSize && ['sm', 'md', 'lg'].includes(savedFontSize)) {
         setFontSizeState(savedFontSize);
@@ -35,6 +53,19 @@ export const useReadingPreferences = () => {
     }
   }, []);
 
+  const toggleTheme = () => {
+    const newTheme: ThemeMode = theme === 'light' ? 'dark' : 'light';
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch {}
+  };
+
   const setFontSize = (size: FontSizeOption) => {
     setFontSizeState(size);
     try {
@@ -42,10 +73,12 @@ export const useReadingPreferences = () => {
     } catch {}
   };
 
-  const toggleBookmark = (articleId: string) => {
+  const toggleBookmark = (articleIdOrSlug: string) => {
     setBookmarksState((prev) => {
-      const exists = prev.includes(articleId);
-      const updated = exists ? prev.filter((id) => id !== articleId) : [...prev, articleId];
+      const exists = prev.includes(articleIdOrSlug);
+      const updated = exists
+        ? prev.filter((id) => id !== articleIdOrSlug)
+        : [...prev, articleIdOrSlug];
       try {
         localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(updated));
       } catch {}
@@ -53,8 +86,8 @@ export const useReadingPreferences = () => {
     });
   };
 
-  const isBookmarked = (articleId: string): boolean => {
-    return bookmarks.includes(articleId);
+  const isBookmarked = (articleIdOrSlug: string): boolean => {
+    return bookmarks.includes(articleIdOrSlug);
   };
 
   const setEdition = (city: EditionCity) => {
@@ -65,6 +98,8 @@ export const useReadingPreferences = () => {
   };
 
   return {
+    theme,
+    toggleTheme,
     fontSize,
     setFontSize,
     bookmarks,

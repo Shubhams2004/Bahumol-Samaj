@@ -23,11 +23,11 @@ import {
 
 interface ArticleDetailPageProps {
   article: Article;
-  onSelectArticle: (articleId: string) => void;
+  onSelectArticle: (slugOrId: string) => void;
   onSelectCategory: (slug: string) => void;
   onNavigateHome: () => void;
-  isBookmarked: (id: string) => boolean;
-  onToggleBookmark: (id: string) => void;
+  isBookmarked: (slugOrId: string) => boolean;
+  onToggleBookmark: (slugOrId: string) => void;
   fontSize: FontSizeOption;
   onChangeFontSize: (size: FontSizeOption) => void;
 }
@@ -52,23 +52,23 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
       id: 'c-1',
       author: 'प्रमोद गायकवाड',
       city: 'पुणे',
-      text: 'अत्यंत वस्तुनिष्ठ आणि अभ्यासपूर्ण वृत्त. अशाच निष्पक्ष पत्रकारितेची आज महाराष्ट्राला गरज आहे.',
-      timestamp: '२ तासांपूर्वी',
+      text: 'साप्ताहिक बहुमोल समाजाचे सडेतोड विश्लेषण वाखाणण्याजोगे आहे. अशाच निर्भीक पत्रकारितेची आज महाराष्ट्राला खरी गरज आहे.',
+      timestamp: '२ दिवसांपूर्वी',
       likes: 8,
     },
     {
       id: 'c-2',
       author: 'सुवर्णा पाटील',
       city: 'नागपूर',
-      text: 'शासनाने घेतलेल्या या निर्णयाचा ग्रामीण भागातील जनतेला निश्चितच थेट फायदा होईल.',
-      timestamp: '४ तासांपूर्वी',
-      likes: 5,
+      text: 'मुख्य संपादक दिलीप सोनाळे यांच्या संपादकीय लेखातील विचार अत्यंत वास्तववादी आणि चिंतनशील आहेत.',
+      timestamp: '३ दिवसांपूर्वी',
+      likes: 12,
     },
   ]);
 
   const category = ALL_CATEGORIES.find((c) => c.slug === article.category);
 
-  // Related articles
+  // Related articles in same section or featured
   const relatedArticles = ARTICLES.filter(
     (a) => a.id !== article.id && (a.category === article.category || a.featured)
   ).slice(0, 3);
@@ -79,7 +79,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
   const nextArticle =
     currentIndex >= 0 && currentIndex < ARTICLES.length - 1 ? ARTICLES[currentIndex + 1] : undefined;
 
-  // Font size multiplier
+  // Font size styling
   const fontSizeClass =
     fontSize === 'lg'
       ? 'text-lg sm:text-xl leading-relaxed'
@@ -135,25 +135,25 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
   };
 
   return (
-    <article className="min-h-screen bg-stone-50 pb-20">
+    <article className="min-h-screen bg-stone-50 dark:bg-stone-950 pb-20 transition-colors">
       {/* Top Breadcrumb & Action Utility */}
-      <div className="bg-white border-b border-stone-200 py-3 px-4 sm:px-6 sticky top-12 z-20 shadow-xs">
+      <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 py-3 px-4 sm:px-6 sticky top-12 z-20 shadow-xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-xs text-stone-500 font-sans truncate">
-            <button onClick={onNavigateHome} className="hover:text-red-700 cursor-pointer shrink-0">
+          <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400 font-sans truncate">
+            <button onClick={onNavigateHome} className="hover:text-red-700 dark:hover:text-red-400 cursor-pointer shrink-0">
               मुख्यपृष्ठ
             </button>
             <ChevronRight className="w-3.5 h-3.5 shrink-0" />
             <button
               onClick={() => onSelectCategory(article.category)}
-              className="hover:text-red-700 cursor-pointer font-medium shrink-0"
+              className="hover:text-red-700 dark:hover:text-red-400 cursor-pointer font-medium shrink-0"
             >
               {category?.nameMarathi || article.category}
             </button>
             <ChevronRight className="w-3.5 h-3.5 shrink-0 hidden sm:inline" />
-            <span className="text-stone-800 font-medium truncate hidden sm:inline">
-              बातमी तपशील
+            <span className="text-stone-800 dark:text-stone-200 font-medium truncate hidden sm:inline">
+              साप्ताहिक बातमी
             </span>
           </div>
 
@@ -163,7 +163,9 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             <button
               onClick={toggleSpeech}
               className={`p-1.5 rounded flex items-center gap-1 text-xs font-semibold cursor-pointer transition-colors ${
-                isPlayingAudio ? 'bg-red-700 text-white animate-pulse' : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                isPlayingAudio
+                  ? 'bg-red-700 text-white animate-pulse'
+                  : 'bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300'
               }`}
               title={isPlayingAudio ? 'वाचन थांबवा' : 'बातमी ऐका (Audio)'}
             >
@@ -172,16 +174,16 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             </button>
 
             {/* Font Sizer Controls */}
-            <div className="flex items-center gap-1 border border-stone-300 rounded px-1.5 py-0.5 bg-white text-xs">
+            <div className="flex items-center gap-1 border border-stone-300 dark:border-stone-700 rounded px-1.5 py-0.5 bg-white dark:bg-stone-900 text-xs">
               <button
                 onClick={() => onChangeFontSize('sm')}
-                className={`px-1 font-bold ${fontSize === 'sm' ? 'text-red-700' : 'text-stone-600'}`}
+                className={`px-1 font-bold ${fontSize === 'sm' ? 'text-red-700 dark:text-red-400' : 'text-stone-600 dark:text-stone-400'}`}
               >
                 अ-
               </button>
               <button
                 onClick={() => onChangeFontSize('lg')}
-                className={`px-1 font-bold ${fontSize === 'lg' ? 'text-red-700' : 'text-stone-600'}`}
+                className={`px-1 font-bold ${fontSize === 'lg' ? 'text-red-700 dark:text-red-400' : 'text-stone-600 dark:text-stone-400'}`}
               >
                 अ+
               </button>
@@ -189,11 +191,11 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
             {/* Bookmark button */}
             <button
-              onClick={() => onToggleBookmark(article.id)}
-              className={`p-1.5 rounded hover:bg-stone-100 cursor-pointer ${
-                isBookmarked(article.id) ? 'text-red-700' : 'text-stone-500'
+              onClick={() => onToggleBookmark(article.slug)}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-800 cursor-pointer ${
+                isBookmarked(article.slug) ? 'text-red-700 dark:text-red-400' : 'text-stone-500 dark:text-stone-400'
               }`}
-              title={isBookmarked(article.id) ? 'जतन केले' : 'जतन करा'}
+              title={isBookmarked(article.slug) ? 'जतन केले' : 'जतन करा'}
             >
               <Bookmark className="w-4 h-4" />
             </button>
@@ -201,7 +203,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             {/* Print Button */}
             <button
               onClick={() => window.print()}
-              className="p-1.5 text-stone-500 hover:bg-stone-100 rounded cursor-pointer hidden sm:inline-block"
+              className="p-1.5 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded cursor-pointer hidden sm:inline-block"
               title="प्रिंट करा"
             >
               <Printer className="w-4 h-4" />
@@ -210,7 +212,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             {/* Share / Copy Button */}
             <button
               onClick={handleCopyLink}
-              className="p-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded flex items-center gap-1 text-xs cursor-pointer"
+              className="p-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded flex items-center gap-1 text-xs cursor-pointer"
               title="बातमीची लिंक कॉपी करा"
             >
               {copyFeedback ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
@@ -222,47 +224,47 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
       {/* Main Article Container */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8">
-        <div className="bg-white rounded-lg border border-stone-200 p-6 sm:p-10 shadow-xs">
-          {/* Category & Location Badge */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-red-700 uppercase tracking-wider mb-3 font-sans">
+        <div className="bg-white dark:bg-stone-900 rounded-lg border border-stone-200 dark:border-stone-800 p-6 sm:p-10 shadow-xs">
+          {/* Category & Location Badge (Zero-Pill Typography) */}
+          <div className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider mb-3 font-sans">
             <button
               onClick={() => onSelectCategory(article.category)}
               className="hover:underline cursor-pointer"
             >
               {category?.nameMarathi}
             </button>
-            <span className="text-stone-300">·</span>
-            <span className="text-stone-600 flex items-center gap-1 font-medium">
+            <span className="text-stone-300 dark:text-stone-700">·</span>
+            <span className="text-stone-600 dark:text-stone-400 flex items-center gap-1 font-medium">
               <MapPin className="w-3.5 h-3.5 text-stone-400" />
               {article.location}
             </span>
           </div>
 
           {/* Headline */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-stone-950 leading-tight mb-4 [text-wrap:balance]">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-stone-950 dark:text-white leading-tight mb-4 [text-wrap:balance]">
             {article.title}
           </h1>
 
           {/* Subtitle */}
           {article.subtitle && (
-            <p className="text-base sm:text-lg font-medium text-stone-700 font-serif leading-relaxed mb-6 border-l-3 border-red-700 pl-4 py-0.5">
+            <p className="text-base sm:text-lg font-medium text-stone-700 dark:text-stone-300 font-serif leading-relaxed mb-6 border-l-3 border-red-700 dark:border-red-500 pl-4 py-0.5">
               {article.subtitle}
             </p>
           )}
 
           {/* Author Byline & Published Date */}
-          <div className="flex flex-wrap items-center justify-between gap-y-2 py-3 border-y border-stone-200 mb-6 text-xs text-stone-600 font-sans">
+          <div className="flex flex-wrap items-center justify-between gap-y-2 py-3 border-y border-stone-200 dark:border-stone-800 mb-6 text-xs text-stone-600 dark:text-stone-400 font-sans">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-red-800 text-white font-serif font-bold flex items-center justify-center text-sm shadow-xs">
                 {article.author.name.charAt(0)}
               </div>
               <div>
-                <p className="font-bold text-stone-900 text-sm">{article.author.name}</p>
-                <p className="text-stone-500 text-[11px]">{article.author.role}</p>
+                <p className="font-bold text-stone-900 dark:text-white text-sm">{article.author.name}</p>
+                <p className="text-stone-500 dark:text-stone-400 text-[11px]">{article.author.role}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-stone-500">
+            <div className="flex items-center gap-4 text-stone-500 dark:text-stone-400">
               <span>प्रसिद्ध: {formatMarathiDate(article.publishedAt)}</span>
               <span>·</span>
               <span className="flex items-center gap-1">
@@ -274,7 +276,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
           {/* Hero Image */}
           <div className="mb-6">
-            <div className="aspect-16/9 rounded overflow-hidden bg-stone-100 shadow-xs">
+            <div className="aspect-16/9 rounded overflow-hidden bg-stone-100 dark:bg-stone-800 shadow-xs">
               <ImageWithFallback
                 src={article.image}
                 alt={article.title}
@@ -283,15 +285,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
               />
             </div>
             {article.imageCaption && (
-              <p className="text-xs text-stone-500 italic mt-2 font-sans border-b border-stone-100 pb-2">
+              <p className="text-xs text-stone-500 dark:text-stone-400 italic mt-2 font-sans border-b border-stone-100 dark:border-stone-800 pb-2">
                 {article.imageCaption}
               </p>
             )}
           </div>
 
           {/* Social Share Bar */}
-          <div className="flex items-center justify-between py-2 mb-6 border-b border-stone-100 text-xs text-stone-600 font-sans">
-            <span className="font-semibold text-stone-700">बातमी शेअर करा:</span>
+          <div className="flex items-center justify-between py-2 mb-6 border-b border-stone-100 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400 font-sans">
+            <span className="font-semibold text-stone-700 dark:text-stone-300">बातमी शेअर करा:</span>
             <div className="flex items-center gap-2">
               <a
                 href={`https://api.whatsapp.com/send?text=${encodeURIComponent(article.title + ' ' + window.location.href)}`}
@@ -321,12 +323,12 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           </div>
 
           {/* Article Excerpt */}
-          <div className="text-base sm:text-lg font-medium text-stone-800 font-serif leading-relaxed mb-6 bg-stone-50 p-4 rounded border-l-4 border-red-700">
+          <div className="text-base sm:text-lg font-medium text-stone-800 dark:text-stone-200 font-serif leading-relaxed mb-6 bg-stone-50 dark:bg-stone-800/50 p-4 rounded border-l-4 border-red-700 dark:border-red-500">
             {article.excerpt}
           </div>
 
           {/* Article Body Paragraphs */}
-          <div className={`space-y-5 text-stone-800 font-sans font-normal ${fontSizeClass}`}>
+          <div className={`space-y-5 text-stone-800 dark:text-stone-200 font-sans font-normal ${fontSizeClass}`}>
             {article.content.map((paragraph, index) => (
               <p key={index} className="leading-relaxed">
                 {paragraph}
@@ -340,12 +342,12 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
               {article.quotes.map((q, idx) => (
                 <blockquote
                   key={idx}
-                  className="bg-amber-50/60 border-l-4 border-amber-600 p-4 rounded-r text-stone-900"
+                  className="bg-amber-50/80 dark:bg-stone-800/80 border-l-4 border-amber-600 dark:border-amber-500 p-4 rounded-r text-stone-900 dark:text-stone-100"
                 >
                   <p className="text-base sm:text-lg font-serif italic mb-1">
                     “{q.text}”
                   </p>
-                  <cite className="text-xs font-bold text-stone-600 font-sans block not-italic">
+                  <cite className="text-xs font-bold text-stone-600 dark:text-stone-400 font-sans block not-italic">
                     — {q.speaker}
                   </cite>
                 </blockquote>
@@ -354,15 +356,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           )}
 
           {/* Tags */}
-          <div className="mt-8 pt-6 border-t border-stone-200">
-            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2 font-sans">
-              संबंधित टॅग्स (Topics):
+          <div className="mt-8 pt-6 border-t border-stone-200 dark:border-stone-800">
+            <span className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider block mb-2 font-sans">
+              संबंधित विषय (Topics):
             </span>
             <div className="flex flex-wrap gap-2">
               {article.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs rounded font-medium cursor-pointer transition-colors"
+                  className="px-2.5 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs rounded font-medium cursor-pointer transition-colors"
                 >
                   #{tag}
                 </span>
@@ -371,18 +373,18 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           </div>
 
           {/* Previous & Next Story Navigation */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 pt-6 border-t border-stone-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 pt-6 border-t border-stone-200 dark:border-stone-800">
             {prevArticle ? (
               <button
                 type="button"
-                onClick={() => onSelectArticle(prevArticle.id)}
-                className="p-4 bg-stone-50 hover:bg-stone-100 rounded border border-stone-200 text-left group cursor-pointer transition-colors"
+                onClick={() => onSelectArticle(prevArticle.slug)}
+                className="p-4 bg-stone-50 dark:bg-stone-800/50 hover:bg-stone-100 dark:hover:bg-stone-800 rounded border border-stone-200 dark:border-stone-700 text-left group cursor-pointer transition-colors"
               >
-                <span className="text-[11px] font-bold text-red-700 uppercase flex items-center gap-1 mb-1 font-sans">
+                <span className="text-[11px] font-bold text-red-700 dark:text-red-400 uppercase flex items-center gap-1 mb-1 font-sans">
                   <ArrowLeft className="w-3.5 h-3.5" />
                   मागील बातमी (Previous Story)
                 </span>
-                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2">
+                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 dark:text-stone-100 group-hover:text-red-800 dark:group-hover:text-red-400 transition-colors line-clamp-2">
                   {prevArticle.title}
                 </h4>
               </button>
@@ -393,14 +395,14 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             {nextArticle ? (
               <button
                 type="button"
-                onClick={() => onSelectArticle(nextArticle.id)}
-                className="p-4 bg-stone-50 hover:bg-stone-100 rounded border border-stone-200 text-right group cursor-pointer transition-colors"
+                onClick={() => onSelectArticle(nextArticle.slug)}
+                className="p-4 bg-stone-50 dark:bg-stone-800/50 hover:bg-stone-100 dark:hover:bg-stone-800 rounded border border-stone-200 dark:border-stone-700 text-right group cursor-pointer transition-colors"
               >
-                <span className="text-[11px] font-bold text-red-700 uppercase flex items-center justify-end gap-1 mb-1 font-sans">
+                <span className="text-[11px] font-bold text-red-700 dark:text-red-400 uppercase flex items-center justify-end gap-1 mb-1 font-sans">
                   पुढील बातमी (Next Story)
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
-                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2">
+                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 dark:text-stone-100 group-hover:text-red-800 dark:group-hover:text-red-400 transition-colors line-clamp-2">
                   {nextArticle.title}
                 </h4>
               </button>
@@ -410,17 +412,17 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           </div>
 
           {/* Reader Feedback & Comments */}
-          <div className="mt-12 pt-8 border-t-2 border-stone-200">
+          <div className="mt-12 pt-8 border-t-2 border-stone-200 dark:border-stone-800">
             <div className="flex items-center gap-2 mb-6">
-              <MessageSquare className="w-5 h-5 text-red-700" />
-              <h3 className="text-xl font-bold font-serif text-stone-900">
+              <MessageSquare className="w-5 h-5 text-red-700 dark:text-red-400" />
+              <h3 className="text-xl font-bold font-serif text-stone-900 dark:text-white">
                 वाचकांच्या प्रतिक्रिया ({toMarathiDigits(comments.length)})
               </h3>
             </div>
 
             {/* Comment Form */}
-            <form onSubmit={handleAddComment} className="bg-stone-50 p-4 rounded border border-stone-200 mb-6">
-              <h4 className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3">
+            <form onSubmit={handleAddComment} className="bg-stone-50 dark:bg-stone-800/60 p-4 rounded border border-stone-200 dark:border-stone-700 mb-6">
+              <h4 className="text-xs font-bold text-stone-700 dark:text-stone-300 uppercase tracking-wider mb-3">
                 तुमचे मत नोंदवा (Leave your comment)
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -429,14 +431,14 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                   placeholder="आपले संपूर्ण नाव..."
                   value={commentName}
                   onChange={(e) => setCommentName(e.target.value)}
-                  className="p-2 text-xs bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-red-600"
+                  className="p-2 text-xs bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 border border-stone-300 dark:border-stone-700 rounded focus:outline-none focus:ring-1 focus:ring-red-600"
                 />
                 <input
                   type="text"
                   placeholder="शहर / गाव (उदा. पुणे, नाशिक)..."
                   value={commentCity}
                   onChange={(e) => setCommentCity(e.target.value)}
-                  className="p-2 text-xs bg-white border border-stone-300 rounded focus:outline-none focus:ring-1 focus:ring-red-600"
+                  className="p-2 text-xs bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 border border-stone-300 dark:border-stone-700 rounded focus:outline-none focus:ring-1 focus:ring-red-600"
                 />
               </div>
               <textarea
@@ -445,7 +447,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 required
-                className="w-full p-2.5 text-xs bg-white border border-stone-300 rounded mb-3 focus:outline-none focus:ring-1 focus:ring-red-600 font-sans"
+                className="w-full p-2.5 text-xs bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 border border-stone-300 dark:border-stone-700 rounded mb-3 focus:outline-none focus:ring-1 focus:ring-red-600 font-sans"
               />
               <button
                 type="submit"
@@ -459,14 +461,14 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             {/* Existing Comments */}
             <div className="space-y-4">
               {comments.map((c) => (
-                <div key={c.id} className="p-4 bg-white border border-stone-200 rounded">
-                  <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                    <span className="font-bold text-stone-800">
+                <div key={c.id} className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded">
+                  <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 mb-1">
+                    <span className="font-bold text-stone-800 dark:text-stone-200">
                       {c.author} ({c.city})
                     </span>
                     <span>{c.timestamp}</span>
                   </div>
-                  <p className="text-xs sm:text-sm text-stone-700 font-sans leading-relaxed">
+                  <p className="text-xs sm:text-sm text-stone-700 dark:text-stone-300 font-sans leading-relaxed">
                     {c.text}
                   </p>
                 </div>
@@ -478,8 +480,8 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
         {/* Related Articles Section */}
         {relatedArticles.length > 0 && (
           <div className="mt-10">
-            <h3 className="text-xl font-bold font-serif text-stone-900 border-b-2 border-stone-800 pb-2 mb-6">
-              संबंधित महत्त्वाच्या बातम्या (Related Stories)
+            <h3 className="text-xl font-bold font-serif text-stone-900 dark:text-white border-b-2 border-stone-800 dark:border-stone-700 pb-2 mb-6">
+              संबंधित महत्त्वाच्या बातम्या (Related Weekly Stories)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {relatedArticles.map((rel) => {
@@ -487,11 +489,11 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                 return (
                   <div
                     key={rel.id}
-                    onClick={() => onSelectArticle(rel.id)}
-                    className="bg-white p-4 rounded border border-stone-200 shadow-xs hover:shadow-md transition-shadow group cursor-pointer flex flex-col justify-between"
+                    onClick={() => onSelectArticle(rel.slug)}
+                    className="bg-white dark:bg-stone-900 p-4 rounded border border-stone-200 dark:border-stone-800 shadow-xs hover:shadow-md transition-shadow group cursor-pointer flex flex-col justify-between"
                   >
                     <div>
-                      <div className="aspect-16/10 rounded overflow-hidden bg-stone-100 mb-2.5">
+                      <div className="aspect-16/10 rounded overflow-hidden bg-stone-100 dark:bg-stone-800 mb-2.5">
                         <ImageWithFallback
                           src={rel.image}
                           alt={rel.title}
@@ -499,14 +501,14 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                           className="w-full h-full object-cover group-hover:scale-104 transition-transform"
                         />
                       </div>
-                      <span className="text-[11px] font-semibold text-red-700 uppercase block mb-1">
+                      <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 uppercase block mb-1">
                         {relCat?.nameMarathi}
                       </span>
-                      <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2 leading-snug">
+                      <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 dark:text-stone-100 group-hover:text-red-800 dark:group-hover:text-red-400 transition-colors line-clamp-2 leading-snug">
                         {rel.title}
                       </h4>
                     </div>
-                    <span className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">
+                    <span className="text-[11px] text-stone-400 dark:text-stone-500 mt-3 pt-2 border-t border-stone-100 dark:border-stone-800">
                       {formatMarathiDate(rel.publishedAt)}
                     </span>
                   </div>

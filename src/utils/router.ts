@@ -9,11 +9,6 @@ export interface RouteState {
   };
 }
 
-/**
- * Cloudflare Pages & SPA Compatible Route Parser
- * Supports both clean hash routing (#/category/maharashtra) and direct pathnames (/category/maharashtra)
- * routed via Cloudflare Pages public/_redirects fallback.
- */
 export const getCurrentPath = (): string => {
   if (typeof window === 'undefined') return '';
   if (window.location.hash) {
@@ -52,10 +47,11 @@ export const parseHash = (hashString?: string): RouteState => {
     };
   }
 
+  // Slug-based article routing
   if (parts[0] === 'article' && parts[1]) {
     return {
       page: 'article',
-      params: { id: parts[1] },
+      params: { slug: parts[1], id: parts[1] },
     };
   }
 

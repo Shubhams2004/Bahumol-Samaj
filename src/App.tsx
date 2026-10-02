@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter, navigateTo } from './utils/router';
 import { useReadingPreferences } from './utils/readingPreferences';
-import { getArticleById } from './data/newsArticles';
+import { getArticleBySlug, getArticleById } from './data/newsArticles';
 import { TopHeader } from './components/common/TopHeader';
 import { BreakingTicker } from './components/common/BreakingTicker';
 import { Footer } from './components/common/Footer';
@@ -18,6 +18,8 @@ import { BookmarksPage } from './pages/BookmarksPage';
 export default function App() {
   const { route } = useRouter();
   const {
+    theme,
+    toggleTheme,
     fontSize,
     setFontSize,
     bookmarks,
@@ -27,9 +29,9 @@ export default function App() {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Navigation handlers
-  const handleSelectArticle = (articleId: string) => {
-    navigateTo(`#/article/${articleId}`);
+  // Slug-based article navigation
+  const handleSelectArticle = (slugOrId: string) => {
+    navigateTo(`#/article/${slugOrId}`);
   };
 
   const handleSelectCategory = (slug: string) => {
@@ -77,7 +79,8 @@ export default function App() {
         );
 
       case 'article': {
-        const article = getArticleById(route.params.id || '');
+        const targetSlugOrId = route.params.slug || route.params.id || '';
+        const article = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
         if (!article) {
           return (
             <HomePage
@@ -159,11 +162,11 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-stone-50 font-sans text-stone-900 ${
+      className={`min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950 font-sans text-stone-900 dark:text-stone-100 transition-colors ${
         fontSize === 'lg' ? 'text-[17px]' : fontSize === 'sm' ? 'text-[14px]' : 'text-[15px]'
       }`}
     >
-      {/* 1. Top Header with masthead and navigation */}
+      {/* 1. Broadsheet Newspaper Top Header */}
       <TopHeader
         currentCategorySlug={currentCategorySlug}
         onSelectCategory={handleSelectCategory}
@@ -175,13 +178,15 @@ export default function App() {
         onNavigateContact={handleNavigateContact}
         fontSize={fontSize}
         onChangeFontSize={setFontSize}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         bookmarksCount={bookmarks.length}
       />
 
-      {/* 2. Breaking News Ticker */}
+      {/* 2. Breaking Weekly Ticker */}
       <BreakingTicker onSelectArticle={handleSelectArticle} />
 
-      {/* 3. Main Dynamic Content */}
+      {/* 3. Main Content View */}
       <main className="flex-1">{renderCurrentPage()}</main>
 
       {/* 4. Global Search Modal */}
@@ -192,7 +197,7 @@ export default function App() {
         onViewAllResults={handleViewAllResults}
       />
 
-      {/* 5. Broadsheet Newspaper Footer */}
+      {/* 5. Newspaper Footer */}
       <Footer
         onSelectCategory={handleSelectCategory}
         onNavigateHome={handleNavigateHome}

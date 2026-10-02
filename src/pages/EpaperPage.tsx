@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { ChevronRight, Download, ZoomIn, ZoomOut, ChevronLeft } from 'lucide-react';
-import { getMarathiCurrentDate, toMarathiDigits } from '../utils/dateFormatter';
+import { CURRENT_WEEKLY_EDITION } from '../data/editionData';
+import { toMarathiDigits } from '../utils/dateFormatter';
 import { EditionCity } from '../types/news';
 
 interface EpaperPageProps {
   onNavigateHome: () => void;
-  onSelectArticle: (articleId: string) => void;
+  onSelectArticle: (slugOrId: string) => void;
 }
 
 export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
@@ -14,7 +15,6 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
   const [selectedEdition, setSelectedEdition] = useState<EditionCity>('पुणे');
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
-  const { formattedDate } = getMarathiCurrentDate();
   const totalPages = 8;
 
   const handleDownload = () => {
@@ -23,7 +23,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 pb-16">
+    <div className="min-h-screen bg-stone-100 dark:bg-stone-950 pb-16 transition-colors">
       {/* Top Controller Bar */}
       <div className="bg-stone-900 text-white py-3 px-4 sm:px-6 shadow-md sticky top-12 z-20">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
@@ -34,9 +34,11 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-stone-600" />
             <span className="font-serif font-bold text-sm sm:text-base text-amber-400">
-              ई-पेपर (ePaper Edition)
+              साप्ताहिक ई-पेपर (Weekly ePaper)
             </span>
-            <span className="text-xs text-stone-400 hidden md:inline">· {formattedDate}</span>
+            <span className="text-xs text-stone-400 hidden md:inline">
+              · {CURRENT_WEEKLY_EDITION.fullDateLabel}
+            </span>
           </div>
 
           {/* Center Edition & Page Selector */}
@@ -103,7 +105,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
               className="ml-2 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white font-bold rounded flex items-center gap-1 cursor-pointer transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">पीडीएफ डाऊनलोड</span>
+              <span className="hidden sm:inline">पीडीएफ अंक डाऊनलोड</span>
             </button>
           </div>
         </div>
@@ -111,7 +113,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
 
       {downloadSuccess && (
         <div className="max-w-xl mx-auto mt-4 p-3 bg-emerald-700 text-white text-xs rounded text-center shadow-lg font-sans">
-          ✓ ‘बहुमोल समाज - {selectedEdition} आवृत्ती’ चा डिजिटल ई-पेपर डाऊनलोड सुरू झाला आहे!
+          ✓ ‘बहुमोल समाज (साप्ताहिक) - {selectedEdition} आवृत्ती’ चा डिजिटल ई-पेपर अंक डाऊनलोड सुरू झाला आहे!
         </div>
       )}
 
@@ -119,21 +121,25 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
       <div className="max-w-5xl mx-auto px-4 py-8 overflow-auto flex justify-center">
         <div
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
-          className="w-full max-w-[850px] bg-white border-2 border-stone-300 shadow-2xl p-6 sm:p-8 transition-transform duration-200"
+          className="w-full max-w-[850px] bg-white text-stone-900 border-2 border-stone-300 shadow-2xl p-6 sm:p-8 transition-transform duration-200"
         >
           {/* Broadsheet Page Header */}
           <div className="border-b-4 border-stone-900 pb-3 mb-4 text-center">
             <div className="flex items-center justify-between text-xs text-stone-600 font-sans border-b border-stone-200 pb-1 mb-2">
               <span>{selectedEdition} आवृत्ती</span>
-              <span>{formattedDate}</span>
+              <span>{CURRENT_WEEKLY_EDITION.fullDateLabel}</span>
               <span>पान क्रमांक: {toMarathiDigits(currentPage)}</span>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-black font-serif tracking-tight text-stone-900">
+            <h2 className="text-4xl sm:text-5xl font-black font-serif tracking-tight text-stone-950">
               बहुमोल समाज
             </h2>
-            <p className="text-xs text-stone-600 mt-1 font-sans">
-              पुणे • मुंबई • नागपूर • छत्रपती संभाजीनगर • नाशिक
-            </p>
+            <div className="flex items-center justify-center gap-3 text-xs text-stone-700 font-serif mt-1">
+              <span>साप्ताहिक वृत्तपत्र</span>
+              <span>•</span>
+              <span>मुख्य संपादक: {CURRENT_WEEKLY_EDITION.editorInChief}</span>
+              <span>•</span>
+              <span>RNI क्र. {CURRENT_WEEKLY_EDITION.rniRegistration}</span>
+            </div>
           </div>
 
           {/* Newspaper Layout Grid Preview */}
@@ -141,19 +147,19 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
             {/* Lead Story in ePaper Page */}
             <div className="col-span-8 border-r border-stone-200 pr-4">
               <span className="text-[11px] font-bold text-red-700 font-sans uppercase">
-                विशेष बातमी • पान {toMarathiDigits(currentPage)}
+                साप्ताहिक विशेष • पान {toMarathiDigits(currentPage)}
               </span>
               <h3 className="text-2xl font-bold font-serif text-stone-900 mt-1 mb-2 leading-tight">
                 {currentPage === 1
                   ? 'महाराष्ट्र विधिमंडळ अर्थसंकल्प: ग्रामीण सिंचन व रोजगार प्रकल्पांसाठी ७५ हजार कोटींची तरतूद'
                   : currentPage === 2
-                  ? 'पुणे-मुंबई दळणवळण क्रांती: नव्या द्रुतगती मार्ग प्रकल्पाची आखणी पूर्ण'
-                  : 'राज्यातील तरुणांसाठी महाभरती मोहीम; विविध विभागांत १५ हजार पदे'}
+                  ? 'पुणे-मुंबई दळणवळण क्रांती: नव्या द्रुतगती महामार्ग प्रणालीची आखणी पूर्ण'
+                  : 'राज्यातील स्पर्धा परीक्षा विद्यार्थ्यांसाठी मोफत जिल्हा अभ्यासिकांचे जाळे'}
               </h3>
               <p className="text-xs text-stone-700 leading-relaxed font-sans mb-3">
                 मुंबई: राज्य शासनाने सादर केलेल्या पुरवणी मागण्यांमध्ये ग्रामीण भागातील रस्ते जोडणी, शेती सिंचन आणि नव्या ऊर्जा प्रकल्पांना विक्रमी निधी वितरित करण्याचे निश्चित केले आहे. विदर्भ आणि मराठवाड्यातील प्रलंबित सिंचन योजनांना गती देण्याचा निर्णय घेतला गेला आहे.
               </p>
-              <div className="bg-stone-100 p-3 rounded text-xs text-stone-600 border border-stone-200 font-sans">
+              <div className="bg-stone-50 p-3 rounded text-xs text-stone-600 border border-stone-200 font-sans">
                 <strong>संपादकीय टिप:</strong> डिजिटल ई-पेपरवर क्लिक करून आपण मूळ वृत्त सविस्तरपणे वाचू शकता.
               </div>
             </div>
@@ -162,7 +168,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
             <div className="col-span-4 space-y-4">
               <div className="border-b border-stone-200 pb-3">
                 <span className="text-[10px] font-bold text-stone-400 font-sans uppercase">
-                  संक्षिप्त वृत्त
+                  क्रीडा साप्ताहिक
                 </span>
                 <h4 className="text-xs font-bold font-serif text-stone-900 mt-1">
                   वानखेडेवर भारताचा थरारक विजय; कर्णधाराचे नाबाद शतक
@@ -174,10 +180,10 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
 
               <div>
                 <span className="text-[10px] font-bold text-stone-400 font-sans uppercase">
-                  तंत्रज्ञान
+                  विज्ञान व कृषी
                 </span>
                 <h4 className="text-xs font-bold font-serif text-stone-900 mt-1">
-                  पुण्यात स्वदेशी इलेक्ट्रिक बॅटरी संशोधन
+                  पुण्यात स्वदेशी सौर बॅटरी तंत्रज्ञान
                 </h4>
                 <p className="text-[11px] text-stone-600 font-sans line-clamp-3 mt-1">
                   केवळ १५ मिनिटांत ८०% चार्जिंग देणाऱ्या सोडियम आयन बॅटरीचे यशस्वी पेटंट दाखल.
@@ -189,29 +195,29 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
           {/* Bottom Columns */}
           <div className="grid grid-cols-3 gap-4 text-xs font-sans text-stone-700">
             <div className="border-r border-stone-200 pr-3">
-              <h5 className="font-bold font-serif text-stone-900 mb-1">शेती व हवामान</h5>
+              <h5 className="font-bold font-serif text-stone-900 mb-1">शेती व हमीभाव</h5>
               <p className="text-[11px] text-stone-600 leading-relaxed">
-                राज्यात पुढील ३ दिवस कोरड्या हवामानाचा अंदाज, रब्बी पेरण्यांना गती देण्याचे कृषी विभागाचे आवाहन.
+                राज्यातील हमीभाव खरेदी केंद्रांवर पारदर्शक वजनासाठी डिजिटल काट्यांची सक्ती.
               </p>
             </div>
             <div className="border-r border-stone-200 pr-3">
-              <h5 className="font-bold font-serif text-stone-900 mb-1">बाजारभाव व व्यापार</h5>
+              <h5 className="font-bold font-serif text-stone-900 mb-1">अर्थ व व्यापार</h5>
               <p className="text-[11px] text-stone-600 leading-relaxed">
-                सोयाबीन व कापूस बाजारात सुधारणा; मुंबई शेअर बाजारात सेन्सेक्समध्ये ३०० अंकांची वाढ.
+                सोयाबीन व कापूस बाजारात सुधारणा; ग्रामीण पतसंस्थांच्या ठेवींमध्ये वाढ.
               </p>
             </div>
             <div>
-              <h5 className="font-bold font-serif text-stone-900 mb-1">मनोरंजन व संस्कृती</h5>
+              <h5 className="font-bold font-serif text-stone-900 mb-1">संस्कृती व साहित्य</h5>
               <p className="text-[11px] text-stone-600 leading-relaxed">
-                राष्ट्रीय पुरस्कार विजेत्या मराठी चित्रपटांचे राज्यभरात विशेष प्रदर्शन सुरू.
+                शतकमहोत्सवी संगीत नाटक महोत्सवाला महाराष्ट्रातील रसिकांचा उत्स्फूर्त प्रतिसाद.
               </p>
             </div>
           </div>
 
           {/* Footer of the ePaper Sheet */}
           <div className="border-t border-stone-300 mt-6 pt-3 text-[10px] text-stone-500 font-sans flex justify-between items-center">
-            <span>बहुमोल समाज माध्यम समूह © २०२६</span>
-            <span>RNI क्र. MAHMAR/2024/88921</span>
+            <span>बहुमोल समाज साप्ताहिक वृत्तपत्र © २०२६</span>
+            <span>मुख्य संपादक: {CURRENT_WEEKLY_EDITION.editorInChief}</span>
             <span>पान {toMarathiDigits(currentPage)} समाप्ती</span>
           </div>
         </div>

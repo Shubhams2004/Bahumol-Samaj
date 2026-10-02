@@ -7,8 +7,8 @@ import { Bookmark, ChevronRight, Trash2, BookOpen } from 'lucide-react';
 
 interface BookmarksPageProps {
   bookmarkedIds: string[];
-  onSelectArticle: (articleId: string) => void;
-  onRemoveBookmark: (articleId: string) => void;
+  onSelectArticle: (slugOrId: string) => void;
+  onRemoveBookmark: (slugOrId: string) => void;
   onNavigateHome: () => void;
 }
 
@@ -18,49 +18,51 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
   onRemoveBookmark,
   onNavigateHome,
 }) => {
-  const savedArticles = ARTICLES.filter((a) => bookmarkedIds.includes(a.id));
+  const savedArticles = ARTICLES.filter(
+    (a) => bookmarkedIds.includes(a.slug) || bookmarkedIds.includes(a.id)
+  );
 
   return (
-    <div className="min-h-screen bg-stone-50 pb-16">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 pb-16 transition-colors">
       {/* Header */}
-      <div className="bg-white border-b border-stone-200 py-8 px-4 sm:px-6">
+      <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 py-8 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-xs text-stone-500 mb-4 font-sans">
-            <button onClick={onNavigateHome} className="hover:text-red-700 cursor-pointer">
+          <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-stone-400 mb-4 font-sans">
+            <button onClick={onNavigateHome} className="hover:text-red-700 dark:hover:text-red-400 cursor-pointer">
               मुख्यपृष्ठ
             </button>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="font-semibold text-stone-800">जतन केलेल्या बातम्या</span>
+            <span className="font-semibold text-stone-800 dark:text-stone-200">जतन केलेल्या बातम्या</span>
           </div>
 
           <div className="flex items-center gap-2 mb-2">
-            <Bookmark className="w-6 h-6 text-red-700" />
-            <h1 className="text-3xl font-serif font-black text-stone-900 tracking-tight">
+            <Bookmark className="w-6 h-6 text-red-700 dark:text-red-400" />
+            <h1 className="text-3xl font-serif font-black text-stone-900 dark:text-white tracking-tight">
               जतन केलेल्या बातम्या (Saved Reading List)
             </h1>
           </div>
-          <p className="text-xs sm:text-sm text-stone-600 font-sans">
-            आपण नंतर वाचण्यासाठी सुरक्षित ठेवलेल्या बातम्या ({toMarathiDigits(savedArticles.length)})
+          <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-300 font-sans">
+            आपण नंतर वाचण्यासाठी सुरक्षित ठेवलेले साप्ताहिक लेख ({toMarathiDigits(savedArticles.length)})
           </p>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-8">
         {savedArticles.length === 0 ? (
-          <div className="bg-white p-12 rounded border border-stone-200 text-center space-y-4">
-            <BookOpen className="w-12 h-12 text-stone-300 mx-auto" />
-            <h3 className="text-lg font-bold font-serif text-stone-800">
+          <div className="bg-white dark:bg-stone-900 p-12 rounded border border-stone-200 dark:border-stone-800 text-center space-y-4">
+            <BookOpen className="w-12 h-12 text-stone-300 dark:text-stone-600 mx-auto" />
+            <h3 className="text-lg font-bold font-serif text-stone-800 dark:text-stone-200">
               अद्याप कोणतीही बातमी जतन केलेली नाही
             </h3>
-            <p className="text-xs text-stone-500 font-sans max-w-sm mx-auto">
+            <p className="text-xs text-stone-500 dark:text-stone-400 font-sans max-w-sm mx-auto">
               कोणतीही बातमी वाचताना वर दिलेल्या बुकमार्क (Bookmark) चिन्हावर क्लिक करून आपण ती येथे जतन करू शकता.
             </p>
             <button
               onClick={onNavigateHome}
               className="px-5 py-2.5 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded cursor-pointer transition-colors font-sans"
             >
-              ताज्या बातम्या पहा &rarr;
+              साप्ताहिक बातम्या पहा &rarr;
             </button>
           </div>
         ) : (
@@ -70,13 +72,13 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
               return (
                 <div
                   key={article.id}
-                  className="bg-white p-4 sm:p-5 rounded border border-stone-200 shadow-xs flex flex-col sm:flex-row gap-4 items-start justify-between group"
+                  className="bg-white dark:bg-stone-900 p-4 sm:p-5 rounded border border-stone-200 dark:border-stone-800 shadow-xs flex flex-col sm:flex-row gap-4 items-start justify-between group"
                 >
                   <div
-                    onClick={() => onSelectArticle(article.id)}
+                    onClick={() => onSelectArticle(article.slug)}
                     className="flex flex-col sm:flex-row gap-4 flex-1 cursor-pointer"
                   >
-                    <div className="w-full sm:w-40 h-28 shrink-0 rounded overflow-hidden bg-stone-100">
+                    <div className="w-full sm:w-40 h-28 shrink-0 rounded overflow-hidden bg-stone-100 dark:bg-stone-800">
                       <ImageWithFallback
                         src={article.image}
                         alt={article.title}
@@ -85,16 +87,16 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
                       />
                     </div>
                     <div className="flex-1">
-                      <span className="text-[11px] font-bold text-red-700 uppercase font-sans block mb-1">
+                      <span className="text-[11px] font-bold text-red-700 dark:text-red-400 uppercase font-sans block mb-1">
                         {cat?.nameMarathi}
                       </span>
-                      <h3 className="text-base sm:text-lg font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors leading-snug mb-1">
+                      <h3 className="text-base sm:text-lg font-bold font-serif text-stone-900 dark:text-white group-hover:text-red-800 dark:group-hover:text-red-400 transition-colors leading-snug mb-1">
                         {article.title}
                       </h3>
-                      <p className="text-xs text-stone-600 line-clamp-2 font-sans mb-2">
+                      <p className="text-xs text-stone-600 dark:text-stone-300 line-clamp-2 font-sans mb-2">
                         {article.excerpt}
                       </p>
-                      <span className="text-[11px] text-stone-400 font-sans">
+                      <span className="text-[11px] text-stone-400 dark:text-stone-500 font-sans">
                         प्रसिद्ध: {formatMarathiDate(article.publishedAt)}
                       </span>
                     </div>
@@ -102,8 +104,8 @@ export const BookmarksPage: React.FC<BookmarksPageProps> = ({
 
                   <div className="self-end sm:self-center">
                     <button
-                      onClick={() => onRemoveBookmark(article.id)}
-                      className="p-2 text-stone-400 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                      onClick={() => onRemoveBookmark(article.slug)}
+                      className="p-2 text-stone-400 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-stone-800 rounded transition-colors cursor-pointer"
                       title="यादीतून काढा"
                     >
                       <Trash2 className="w-4 h-4" />
