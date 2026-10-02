@@ -1,8 +1,8 @@
 import React from 'react';
 import { Article } from '../../types/news';
 import { ALL_CATEGORIES } from '../../data/categories';
-import { getRelativeTimeMarathi, toMarathiDigits } from '../../utils/dateFormatter';
-import { Clock, Flame, ChevronRight } from 'lucide-react';
+import { getRelativeTimeMarathi } from '../../utils/dateFormatter';
+import { Clock, ChevronRight } from 'lucide-react';
 
 interface LatestNewsFeedProps {
   articles: Article[];
@@ -16,60 +16,46 @@ export const LatestNewsFeed: React.FC<LatestNewsFeedProps> = ({
   onSelectCategory,
 }) => {
   return (
-    <div className="bg-white p-5 rounded border border-stone-200 shadow-xs mb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b-2 border-stone-800 pb-2 mb-4">
+    <div className="bg-stone-50 border border-stone-200 rounded p-4 mb-8">
+      {/* Feed Header */}
+      <div className="flex items-center justify-between border-b border-stone-200 pb-2 mb-3">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
-          <h3 className="text-xl font-bold font-serif text-stone-900 tracking-tight">
-            ताज्या घडामोडी (Latest News Feed)
+          <Clock className="w-4 h-4 text-red-700" />
+          <h3 className="font-serif font-black text-stone-900 text-base uppercase">
+            ताज्या घडामोडी (Latest Feed)
           </h3>
         </div>
-        <span className="text-xs text-stone-500 font-sans hidden sm:inline">
-          मिनिटागणिक अपडेट्स
+        <span className="text-[11px] font-semibold text-stone-500 font-sans">
+          क्षणोक्षणी अपडेट
         </span>
       </div>
 
-      {/* Feed list */}
-      <div className="divide-y divide-stone-100">
-        {articles.map((item, index) => {
+      {/* Ticker Grid List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        {articles.map((item) => {
           const cat = ALL_CATEGORIES.find((c) => c.slug === item.category);
           return (
             <div
               key={item.id}
               onClick={() => onSelectArticle(item.id)}
-              className="py-3 group cursor-pointer flex items-baseline gap-3 hover:bg-stone-50 px-2 rounded transition-colors"
+              className="group cursor-pointer flex items-baseline gap-2 py-1.5 border-b border-stone-100 last:border-b-0"
             >
-              {/* Bullet / Time */}
-              <div className="shrink-0 flex items-center gap-1.5 w-24 text-[11px] text-stone-500 font-sans">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-700"></span>
-                <span>{getRelativeTimeMarathi(item.publishedAt)}</span>
-              </div>
-
-              {/* Title & Category */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCategory(item.category);
-                    }}
-                    className="text-[11px] font-semibold text-red-700 hover:underline uppercase tracking-wider font-sans"
-                  >
-                    {cat?.nameMarathi || item.category}
-                  </button>
-                  <span className="text-stone-300">·</span>
-                  <span className="text-[11px] text-stone-400 font-sans">{item.location}</span>
-                </div>
-                <h4 className="text-sm font-semibold font-serif text-stone-900 group-hover:text-red-800 transition-colors leading-snug">
-                  {item.title}
-                </h4>
-              </div>
-
-              {/* Action chevron */}
-              <div className="shrink-0 self-center text-stone-400 group-hover:text-red-700 transition-colors">
-                <ChevronRight className="w-4 h-4" />
-              </div>
+              <span className="text-[11px] font-mono text-stone-400 shrink-0">
+                {getRelativeTimeMarathi(item.publishedAt)}
+              </span>
+              <span className="text-stone-300">·</span>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectCategory(item.category);
+                }}
+                className="text-[11px] font-bold text-red-700 shrink-0 hover:underline uppercase"
+              >
+                {cat?.nameMarathi}
+              </span>
+              <p className="text-xs text-stone-800 group-hover:text-red-800 transition-colors font-sans truncate font-medium flex-1">
+                {item.title}
+              </p>
             </div>
           );
         })}

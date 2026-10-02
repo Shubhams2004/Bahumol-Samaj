@@ -2,8 +2,8 @@ import React from 'react';
 import { Article } from '../../types/news';
 import { ALL_CATEGORIES } from '../../data/categories';
 import { getRelativeTimeMarathi, toMarathiDigits } from '../../utils/dateFormatter';
-import { Clock, MapPin, Share2, Bookmark } from 'lucide-react';
 import { ImageWithFallback } from '../common/ImageWithFallback';
+import { Clock, MapPin, Bookmark } from 'lucide-react';
 
 interface LeadStorySectionProps {
   leadStory: Article;
@@ -25,181 +25,158 @@ export const LeadStorySection: React.FC<LeadStorySectionProps> = ({
   const leadCat = ALL_CATEGORIES.find((c) => c.slug === leadStory.category);
 
   return (
-    <section className="bg-white border-b border-stone-200 py-6 sm:py-8 px-4 sm:px-6">
+    <section className="bg-white border-b border-stone-300 py-6 sm:py-8 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        {/* Section Ribbon */}
-        <div className="flex items-center justify-between border-b-2 border-stone-900 pb-2 mb-6">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 bg-red-700"></span>
-            <h2 className="text-xl sm:text-2xl font-serif font-black text-stone-900 tracking-tight">
-              आजची मोठी बातमी (Lead Story)
-            </h2>
-          </div>
-          <span className="text-xs text-stone-500 font-sans hidden sm:inline">
-            विशेष वार्ताहर व ब्युरो वृत्तांत
-          </span>
-        </div>
-
-        {/* 2-Column Newspaper Lead Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Main Lead Story (Left 8 Cols) */}
-          <article className="lg:col-span-8 group">
-            {/* Category & Location Kicker */}
-            <div className="flex items-center gap-2 text-xs font-semibold text-red-700 uppercase tracking-wider mb-2 font-sans">
-              <button
-                onClick={() => onSelectCategory(leadStory.category)}
-                className="hover:underline cursor-pointer"
-              >
-                {leadCat?.nameMarathi || leadStory.category}
-              </button>
-              <span className="text-stone-300">·</span>
-              <span className="text-stone-600 font-medium flex items-center gap-0.5">
-                <MapPin className="w-3 h-3 text-stone-400" />
-                {leadStory.location}
-              </span>
-              <span className="text-stone-300">·</span>
-              <span className="text-stone-500 font-normal">
-                {getRelativeTimeMarathi(leadStory.publishedAt)}
-              </span>
-            </div>
+          {/* Main Dominant Lead Story (8 cols) */}
+          <div className="lg:col-span-8 lg:border-r lg:border-stone-200 lg:pr-8">
+            <article className="group cursor-pointer">
+              {/* Category & Location Header */}
+              <div className="flex items-center justify-between text-xs font-sans mb-2.5">
+                <div className="flex items-center gap-2">
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectCategory(leadStory.category);
+                    }}
+                    className="font-bold text-red-700 uppercase tracking-wider hover:underline"
+                  >
+                    {leadCat?.nameMarathi || leadStory.category}
+                  </span>
+                  <span className="text-stone-300">·</span>
+                  <span className="text-stone-500 flex items-center gap-1 font-medium">
+                    <MapPin className="w-3 h-3 text-stone-400" />
+                    {leadStory.location}
+                  </span>
+                  <span className="text-stone-300">·</span>
+                  <span className="text-stone-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-stone-400" />
+                    {getRelativeTimeMarathi(leadStory.publishedAt)}
+                  </span>
+                </div>
 
-            {/* Dominant Headline */}
-            <h1
-              onClick={() => onSelectArticle(leadStory.id)}
-              className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-stone-950 group-hover:text-red-800 transition-colors cursor-pointer leading-tight mb-3 [text-wrap:balance]"
-            >
-              {leadStory.title}
-            </h1>
-
-            {/* Subtitle / Deck */}
-            {leadStory.subtitle && (
-              <p className="text-sm sm:text-base font-medium text-stone-700 font-serif leading-relaxed mb-4 border-l-2 border-red-700 pl-3">
-                {leadStory.subtitle}
-              </p>
-            )}
-
-            {/* Hero Image */}
-            <div
-              onClick={() => onSelectArticle(leadStory.id)}
-              className="relative aspect-16/9 rounded overflow-hidden bg-stone-100 cursor-pointer mb-3 shadow-xs"
-            >
-              <ImageWithFallback
-                src={leadStory.image}
-                alt={leadStory.title}
-                categoryName={leadCat?.nameMarathi}
-                className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
-              />
-              <div className="absolute top-3 left-3 bg-red-700 text-white text-[11px] font-bold px-2 py-0.5 uppercase tracking-wider rounded font-sans">
-                विशेष वृत्तांत
-              </div>
-            </div>
-
-            {/* Image Caption */}
-            {leadStory.imageCaption && (
-              <p className="text-xs text-stone-500 italic mb-4 font-sans border-b border-stone-100 pb-2">
-                {leadStory.imageCaption}
-              </p>
-            )}
-
-            {/* Lead Story Excerpt */}
-            <p className="text-sm sm:text-base text-stone-700 leading-relaxed font-sans mb-4">
-              {leadStory.excerpt}
-            </p>
-
-            {/* Metadata Footer */}
-            <div className="flex items-center justify-between text-xs text-stone-500 pt-2 border-t border-stone-200">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-stone-800">{leadStory.author.name}</span>
-                <span>·</span>
-                <span>{leadStory.author.role}</span>
-                <span>·</span>
-                <span className="flex items-center gap-1 font-sans">
-                  <Clock className="w-3 h-3" />
-                  वाचनाचा वेळ: {toMarathiDigits(leadStory.readTimeMinutes)} मिनिटे
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => onToggleBookmark(leadStory.id)}
-                  className={`p-1.5 rounded hover:bg-stone-100 transition-colors cursor-pointer ${
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleBookmark(leadStory.id);
+                  }}
+                  className={`p-1.5 rounded hover:bg-stone-100 transition-colors ${
                     isBookmarked(leadStory.id) ? 'text-red-700' : 'text-stone-400'
                   }`}
                   title={isBookmarked(leadStory.id) ? 'जतन केले' : 'जतन करा'}
                 >
                   <Bookmark className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => onSelectArticle(leadStory.id)}
-                  className="px-3 py-1 bg-stone-900 hover:bg-red-800 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  सविस्तर वाचा &rarr;
-                </button>
               </div>
+
+              {/* Dominant Headline */}
+              <h2
+                onClick={() => onSelectArticle(leadStory.id)}
+                className="text-2xl sm:text-3xl lg:text-4xl font-black font-serif text-stone-950 group-hover:text-red-800 transition-colors leading-[1.2] mb-3 [text-wrap:balance]"
+              >
+                {leadStory.title}
+              </h2>
+
+              {/* Subtitle Deck */}
+              {leadStory.subtitle && (
+                <p className="text-sm sm:text-base font-medium text-stone-700 font-serif leading-relaxed mb-4 border-l-2 border-red-700 pl-3">
+                  {leadStory.subtitle}
+                </p>
+              )}
+
+              {/* Hero Image */}
+              <div
+                onClick={() => onSelectArticle(leadStory.id)}
+                className="relative aspect-16/9 rounded-md overflow-hidden bg-stone-100 mb-4 shadow-xs"
+              >
+                <ImageWithFallback
+                  src={leadStory.image}
+                  alt={leadStory.title}
+                  categoryName={leadCat?.nameMarathi}
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                />
+              </div>
+
+              {leadStory.imageCaption && (
+                <p className="text-[11px] text-stone-500 italic mb-3 font-sans">
+                  {leadStory.imageCaption}
+                </p>
+              )}
+
+              {/* Lead Excerpt */}
+              <p
+                onClick={() => onSelectArticle(leadStory.id)}
+                className="text-sm text-stone-700 leading-relaxed font-sans line-clamp-3 mb-4"
+              >
+                {leadStory.excerpt}
+              </p>
+
+              {/* Byline & Read time */}
+              <div className="flex items-center justify-between text-xs text-stone-500 font-sans pt-3 border-t border-stone-100">
+                <span className="font-semibold text-stone-700">
+                  विशेष वृत्त: {leadStory.author.name} ({leadStory.author.location})
+                </span>
+                <span className="text-red-700 font-bold hover:underline">
+                  सविस्तर बातमी वाचा &rarr;
+                </span>
+              </div>
+            </article>
+          </div>
+
+          {/* Supporting Featured Stories Column (4 cols) */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="border-b-2 border-stone-900 pb-2 mb-4 flex items-center justify-between">
+              <h3 className="font-serif font-black text-stone-900 text-lg uppercase tracking-tight">
+                महत्त्वाच्या घडामोडी
+              </h3>
+              <span className="text-xs font-bold text-red-700 font-sans">विशेष वार्ता</span>
             </div>
-          </article>
 
-          {/* Supporting Stories Column (Right 4 Cols) */}
-          <div className="lg:col-span-4 space-y-6 lg:border-l lg:border-stone-200 lg:pl-8">
-            <div className="border-b border-stone-200 pb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 font-sans">
-                महत्त्वाचे सहवृत्तांत (Highlights)
-              </span>
-            </div>
-
-            {supportingStories.map((story, idx) => {
-              const cat = ALL_CATEGORIES.find((c) => c.slug === story.category);
-              return (
-                <article
-                  key={story.id}
-                  className="group cursor-pointer pb-6 border-b border-stone-200 last:border-b-0 last:pb-0"
-                >
-                  {/* Category & Time */}
-                  <div className="flex items-center gap-2 text-[11px] text-stone-500 mb-1.5 font-sans">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectCategory(story.category);
-                      }}
-                      className="text-red-700 font-semibold hover:underline"
-                    >
-                      {cat?.nameMarathi || story.category}
-                    </button>
-                    <span>·</span>
-                    <span>{getRelativeTimeMarathi(story.publishedAt)}</span>
-                  </div>
-
-                  {/* Supporting Headline */}
-                  <h3
+            <div className="divide-y divide-stone-200 space-y-5">
+              {supportingStories.map((story) => {
+                const storyCat = ALL_CATEGORIES.find((c) => c.slug === story.category);
+                return (
+                  <article
+                    key={story.id}
                     onClick={() => onSelectArticle(story.id)}
-                    className="text-base sm:text-lg font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors leading-snug mb-2"
+                    className="pt-5 first:pt-0 group cursor-pointer"
                   >
-                    {story.title}
-                  </h3>
+                    <div className="flex gap-4 items-start">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-[11px] text-stone-500 mb-1 font-sans">
+                          <span className="text-red-700 font-bold uppercase">
+                            {storyCat?.nameMarathi}
+                          </span>
+                          <span>·</span>
+                          <span>{story.location}</span>
+                        </div>
+                        <h4 className="text-base font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors leading-snug line-clamp-2 mb-1.5">
+                          {story.title}
+                        </h4>
+                        <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-sans">
+                          {story.excerpt}
+                        </p>
+                      </div>
 
-                  {/* Thumbnail & Excerpt snippet */}
-                  <div className="flex gap-3">
-                    <div
-                      onClick={() => onSelectArticle(story.id)}
-                      className="w-24 h-18 shrink-0 rounded overflow-hidden bg-stone-100"
-                    >
-                      <ImageWithFallback
-                        src={story.image}
-                        alt={story.title}
-                        categoryName={cat?.nameMarathi}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
+                      <div className="w-24 h-20 shrink-0 rounded overflow-hidden bg-stone-100">
+                        <ImageWithFallback
+                          src={story.image}
+                          alt={story.title}
+                          categoryName={storyCat?.nameMarathi}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
                     </div>
-                    <p
-                      onClick={() => onSelectArticle(story.id)}
-                      className="text-xs text-stone-600 line-clamp-3 leading-relaxed flex-1 font-sans"
-                    >
-                      {story.excerpt}
-                    </p>
-                  </div>
-                </article>
-              );
-            })}
+
+                    <div className="flex items-center justify-between text-[11px] text-stone-400 mt-2 font-sans">
+                      <span>{getRelativeTimeMarathi(story.publishedAt)}</span>
+                      <span>वाचन वेळ: {toMarathiDigits(story.readTimeMinutes)} मिनिटे</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

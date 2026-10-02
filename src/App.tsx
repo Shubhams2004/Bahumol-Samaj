@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useRouter, navigateTo } from './utils/router';
 import { useReadingPreferences } from './utils/readingPreferences';
-import { newsService } from './services/newsService';
 import { getArticleById } from './data/newsArticles';
 import { TopHeader } from './components/common/TopHeader';
 import { BreakingTicker } from './components/common/BreakingTicker';
@@ -61,13 +60,11 @@ export default function App() {
     navigateTo(`#/search?q=${encodeURIComponent(query)}`);
   };
 
-  // Determine current active category slug if on category or article page
   let currentCategorySlug: string | undefined = undefined;
   if (route.page === 'category' && route.params.slug) {
     currentCategorySlug = route.params.slug;
   }
 
-  // Render current view
   const renderCurrentPage = () => {
     switch (route.page) {
       case 'category':
@@ -161,10 +158,12 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col bg-stone-50 font-sans text-stone-900 ${
-      fontSize === 'lg' ? 'text-[17px]' : fontSize === 'sm' ? 'text-[14px]' : 'text-[15px]'
-    }`}>
-      {/* 1. Header with masthead and navigation */}
+    <div
+      className={`min-h-screen flex flex-col bg-stone-50 font-sans text-stone-900 ${
+        fontSize === 'lg' ? 'text-[17px]' : fontSize === 'sm' ? 'text-[14px]' : 'text-[15px]'
+      }`}
+    >
+      {/* 1. Top Header with masthead and navigation */}
       <TopHeader
         currentCategorySlug={currentCategorySlug}
         onSelectCategory={handleSelectCategory}
@@ -183,9 +182,7 @@ export default function App() {
       <BreakingTicker onSelectArticle={handleSelectArticle} />
 
       {/* 3. Main Dynamic Content */}
-      <main className="flex-1">
-        {renderCurrentPage()}
-      </main>
+      <main className="flex-1">{renderCurrentPage()}</main>
 
       {/* 4. Global Search Modal */}
       <SearchModal

@@ -1,6 +1,5 @@
-// Utility functions for Marathi typography, dates, and numerals
-
-const MARATHI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+// Marathi numerals mapping
+const marathiDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
 
 export const toMarathiDigits = (num: number | string): string => {
   return num
@@ -8,12 +7,12 @@ export const toMarathiDigits = (num: number | string): string => {
     .split('')
     .map((char) => {
       const parsed = parseInt(char, 10);
-      return !isNaN(parsed) && char !== ' ' ? MARATHI_DIGITS[parsed] : char;
+      return !isNaN(parsed) && char !== ' ' ? marathiDigits[parsed] : char;
     })
     .join('');
 };
 
-const MARATHI_MONTHS = [
+const marathiMonths = [
   'जानेवारी',
   'फेब्रुवारी',
   'मार्च',
@@ -28,7 +27,7 @@ const MARATHI_MONTHS = [
   'डिसेंबर',
 ];
 
-const MARATHI_DAYS = [
+const marathiDays = [
   'रविवार',
   'सोमवार',
   'मंगळवार',
@@ -44,14 +43,14 @@ export const getMarathiCurrentDate = (): {
   tithiInfo: string;
 } => {
   const now = new Date();
-  const dayName = MARATHI_DAYS[now.getDay()];
-  const dateNum = toMarathiDigits(now.getDate());
-  const monthName = MARATHI_MONTHS[now.getMonth()];
-  const yearNum = toMarathiDigits(now.getFullYear());
+  const dayName = marathiDays[now.getDay()];
+  const date = toMarathiDigits(now.getDate());
+  const month = marathiMonths[now.getMonth()];
+  const year = toMarathiDigits(now.getFullYear());
 
   return {
     dayName,
-    formattedDate: `${dayName}, ${dateNum} ${monthName} ${yearNum}`,
+    formattedDate: `${dayName}, ${date} ${month} ${year}`,
     tithiInfo: 'आश्विन कृष्ण पक्ष | शके १९४८',
   };
 };
@@ -59,17 +58,18 @@ export const getMarathiCurrentDate = (): {
 export const formatMarathiDate = (isoString: string): string => {
   try {
     const d = new Date(isoString);
-    const dateNum = toMarathiDigits(d.getDate());
-    const monthName = MARATHI_MONTHS[d.getMonth()];
-    const yearNum = toMarathiDigits(d.getFullYear());
+    const date = toMarathiDigits(d.getDate());
+    const month = marathiMonths[d.getMonth()];
+    const year = toMarathiDigits(d.getFullYear());
+
     let hours = d.getHours();
     const minutes = toMarathiDigits(d.getMinutes().toString().padStart(2, '0'));
     const ampm = hours >= 12 ? 'दु.' : 'स.';
     if (hours > 12) hours -= 12;
     if (hours === 0) hours = 12;
-    const hoursNum = toMarathiDigits(hours);
+    const hoursMarathi = toMarathiDigits(hours);
 
-    return `${dateNum} ${monthName} ${yearNum}, ${ampm} ${hoursNum}:${minutes}`;
+    return `${date} ${month} ${year}, ${ampm} ${hoursMarathi}:${minutes}`;
   } catch {
     return isoString;
   }
@@ -77,19 +77,18 @@ export const formatMarathiDate = (isoString: string): string => {
 
 export const getRelativeTimeMarathi = (isoString: string): string => {
   try {
-    const d = new Date(isoString);
+    const date = new Date(isoString);
     const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMinutes < 1) return 'आत्ताच';
-    if (diffMinutes < 60) return `${toMarathiDigits(diffMinutes)} मिनिटांपूर्वी`;
+    if (diffMins < 1) return 'आत्ताच';
+    if (diffMins < 60) return `${toMarathiDigits(diffMins)} मिनिटांपूर्वी`;
     if (diffHours < 24) return `${toMarathiDigits(diffHours)} तासांपूर्वी`;
     if (diffDays === 1) return 'काल';
     if (diffDays < 30) return `${toMarathiDigits(diffDays)} दिवसांपूर्वी`;
-
     return formatMarathiDate(isoString);
   } catch {
     return 'काही वेळापूर्वी';

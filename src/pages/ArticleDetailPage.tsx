@@ -15,7 +15,6 @@ import {
   Volume2,
   VolumeX,
   MessageSquare,
-  ThumbsUp,
   Send,
   Check,
   ArrowLeft,
@@ -82,7 +81,11 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
 
   // Font size multiplier
   const fontSizeClass =
-    fontSize === 'lg' ? 'text-lg sm:text-xl leading-relaxed' : fontSize === 'sm' ? 'text-sm leading-normal' : 'text-base sm:text-lg leading-relaxed';
+    fontSize === 'lg'
+      ? 'text-lg sm:text-xl leading-relaxed'
+      : fontSize === 'sm'
+      ? 'text-sm leading-normal'
+      : 'text-base sm:text-lg leading-relaxed';
 
   // Audio Speech (TTS)
   const toggleSpeech = () => {
@@ -97,7 +100,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
     } else {
       const textToRead = `${article.title}. ${article.excerpt}. ${article.content.join(' ')}`;
       const utterance = new SpeechSynthesisUtterance(textToRead);
-      utterance.lang = 'mr-IN'; // Marathi language code
+      utterance.lang = 'mr-IN';
       utterance.rate = 0.95;
       utterance.onend = () => setIsPlayingAudio(false);
       utterance.onerror = () => setIsPlayingAudio(false);
@@ -458,7 +461,9 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
               {comments.map((c) => (
                 <div key={c.id} className="p-4 bg-white border border-stone-200 rounded">
                   <div className="flex items-center justify-between text-xs text-stone-500 mb-1">
-                    <span className="font-bold text-stone-800">{c.author} ({c.city})</span>
+                    <span className="font-bold text-stone-800">
+                      {c.author} ({c.city})
+                    </span>
                     <span>{c.timestamp}</span>
                   </div>
                   <p className="text-xs sm:text-sm text-stone-700 font-sans leading-relaxed">

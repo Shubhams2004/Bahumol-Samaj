@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, Download, ZoomIn, ZoomOut, ChevronLeft, Calendar, FileText } from 'lucide-react';
+import { ChevronRight, Download, ZoomIn, ZoomOut, ChevronLeft } from 'lucide-react';
 import { getMarathiCurrentDate, toMarathiDigits } from '../utils/dateFormatter';
 import { EditionCity } from '../types/news';
 
@@ -8,7 +8,7 @@ interface EpaperPageProps {
   onSelectArticle: (articleId: string) => void;
 }
 
-export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelectArticle }) => {
+export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [selectedEdition, setSelectedEdition] = useState<EditionCity>('पुणे');
@@ -29,7 +29,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           {/* Left Title & Breadcrumb */}
           <div className="flex items-center gap-3">
-            <button onClick={onNavigateHome} className="text-xs text-stone-400 hover:text-white">
+            <button onClick={onNavigateHome} className="text-xs text-stone-400 hover:text-white cursor-pointer">
               मुख्यपृष्ठ
             </button>
             <ChevronRight className="w-3.5 h-3.5 text-stone-600" />
@@ -59,7 +59,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
               <button
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="p-1 hover:text-amber-400 disabled:opacity-30 disabled:hover:text-white"
+                className="p-1 hover:text-amber-400 disabled:opacity-30 disabled:hover:text-white cursor-pointer"
                 title="मागील पान"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -70,7 +70,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
               <button
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="p-1 hover:text-amber-400 disabled:opacity-30 disabled:hover:text-white"
+                className="p-1 hover:text-amber-400 disabled:opacity-30 disabled:hover:text-white cursor-pointer"
                 title="पुढील पान"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -82,7 +82,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={() => setZoomLevel((z) => Math.max(80, z - 10))}
-              className="p-1.5 bg-stone-800 hover:bg-stone-700 rounded"
+              className="p-1.5 bg-stone-800 hover:bg-stone-700 rounded cursor-pointer"
               title="झूम कमी करा"
             >
               <ZoomOut className="w-4 h-4" />
@@ -92,7 +92,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
             </span>
             <button
               onClick={() => setZoomLevel((z) => Math.min(130, z + 10))}
-              className="p-1.5 bg-stone-800 hover:bg-stone-700 rounded"
+              className="p-1.5 bg-stone-800 hover:bg-stone-700 rounded cursor-pointer"
               title="झूम वाढवा"
             >
               <ZoomIn className="w-4 h-4" />
@@ -110,7 +110,7 @@ export const EpaperPage: React.FC<EpaperPageProps> = ({ onNavigateHome, onSelect
       </div>
 
       {downloadSuccess && (
-        <div className="max-w-xl mx-auto mt-4 p-3 bg-emerald-700 text-white text-xs rounded text-center shadow-lg font-sans animate-in fade-in">
+        <div className="max-w-xl mx-auto mt-4 p-3 bg-emerald-700 text-white text-xs rounded text-center shadow-lg font-sans">
           ✓ ‘बहुमोल समाज - {selectedEdition} आवृत्ती’ चा डिजिटल ई-पेपर डाऊनलोड सुरू झाला आहे!
         </div>
       )}

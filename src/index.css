@@ -1,27 +1,30 @@
 @import "tailwindcss";
 
-@theme {
-  --font-serif: "Noto Serif Devanagari", "Martel", Georgia, serif;
-  --font-sans: "Mukta", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-masthead: "Rozha One", "Martel", "Noto Serif Devanagari", serif;
-}
-
 @layer base {
   html {
+    font-family: 'Mukta', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     scroll-behavior: smooth;
-    font-feature-settings: "kern" 1;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Martel', 'Noto Serif Devanagari', Georgia, serif;
+    letter-spacing: -0.015em;
   }
 }
 
-/* Editorial Newspaper Grid & Print Rules */
-@media print {
-  header, footer, .no-print {
-    display: none !important;
-  }
-  body {
-    background: white !important;
-    color: black !important;
-  }
+.font-headline {
+  font-family: 'Rozha One', 'Martel', serif;
+}
+
+.font-editorial {
+  font-family: 'Noto Serif Devanagari', 'Martel', serif;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

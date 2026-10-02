@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Award, Shield, CheckCircle, Users, HeartHandshake, BookOpen } from 'lucide-react';
+import { ChevronRight, Shield, CheckCircle, HeartHandshake, Users, BookOpen } from 'lucide-react';
 
 interface AboutPageProps {
   onNavigateHome: () => void;
@@ -105,7 +105,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigate
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">मुख्य संपादक (Editor-in-Chief)</span>
+              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
+                मुख्य संपादक (Editor-in-Chief)
+              </span>
               <h4 className="text-lg font-bold font-serif text-stone-900">भास्करराव मोहिते</h4>
               <p className="text-xs text-stone-600 mt-1 font-sans">
                 मराठी वृत्तपत्र क्षेत्रातील ३० वर्षांचा प्रदीर्घ अनुभव. राजकीय व सामाजिक विश्लेषणाचे गाढे अभ्यासक.
@@ -113,7 +115,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigate
             </div>
 
             <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">निवासी संपादक (पुणे ब्युरो)</span>
+              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
+                निवासी संपादक (पुणे ब्युरो)
+              </span>
               <h4 className="text-lg font-bold font-serif text-stone-900">आनंद जोशी</h4>
               <p className="text-xs text-stone-600 mt-1 font-sans">
                 प्रशासकीय घडामोडी, शिक्षण व स्पर्धा परीक्षा मार्गदर्शक. डिजिटल मीडिया तज्ज्ञ.
@@ -121,7 +125,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigate
             </div>
 
             <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">ब्युरो चीफ (मुंबई व कोकण)</span>
+              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
+                ब्युरो चीफ (मुंबई व कोकण)
+              </span>
               <h4 className="text-lg font-bold font-serif text-stone-900">संजय कुलकर्णी</h4>
               <p className="text-xs text-stone-600 mt-1 font-sans">
                 मंत्रालय व विधानभवन वार्तांकन, पायाभूत सुविधा व आर्थिक धोरणांचे विश्लेषक.
@@ -129,7 +135,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigateHome, onNavigate
             </div>
 
             <div className="p-4 bg-stone-50 rounded border border-stone-200">
-              <span className="text-xs font-bold text-red-700 font-sans block mb-1">विशेष प्रतिनिधी (विज्ञान-तंत्रज्ञान)</span>
+              <span className="text-xs font-bold text-red-700 font-sans block mb-1">
+                विशेष प्रतिनिधी (विज्ञान-तंत्रज्ञान)
+              </span>
               <h4 className="text-lg font-bold font-serif text-stone-900">डॉ. अनिता देशपांडे</h4>
               <p className="text-xs text-stone-600 mt-1 font-sans">
                 पर्यावरण, ऊर्जा आणि उदयोन्मुख तंत्रज्ञान संशोधनावर नियमित स्तंभलेखन.

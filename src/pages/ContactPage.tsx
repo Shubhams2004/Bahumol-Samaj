@@ -207,7 +207,9 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigateHome }) => {
                   </div>
 
                   <div>
-                    <label className="block text-stone-700 font-bold mb-1">संदेश / बातमीचा सविस्तर तपशील *</label>
+                    <label className="block text-stone-700 font-bold mb-1">
+                      संदेश / बातमीचा सविस्तर तपशील *
+                    </label>
                     <textarea
                       rows={5}
                       required

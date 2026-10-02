@@ -10,18 +10,16 @@ export type CategorySlug =
   | 'entertainment'
   | 'editorial';
 
-export interface Category {
-  slug: CategorySlug;
-  nameMarathi: string;
-  nameEnglish: string;
-  description: string;
-  accentColor: string;
-}
-
 export interface Author {
   name: string;
   role: string;
-  location?: string;
+  location: string;
+  avatar?: string;
+}
+
+export interface Quote {
+  text: string;
+  speaker: string;
 }
 
 export interface Article {
@@ -34,26 +32,25 @@ export interface Article {
   imageCaption?: string;
   author: Author;
   location: string;
-  publishedAt: string; // ISO 8601 string
+  publishedAt: string; // ISO String
   readTimeMinutes: number;
-  featured?: boolean;
   leadStory?: boolean;
+  featured?: boolean;
   trending?: boolean;
   mostRead?: boolean;
-  breaking?: boolean;
-  content: string[]; // Paragraphs
-  quotes?: { text: string; speaker: string }[];
-  tags: string[];
   viewsCount: number;
   sharesCount: number;
+  tags: string[];
+  quotes?: Quote[];
+  content: string[]; // Array of paragraphs
 }
 
-export interface BreakingItem {
-  id: string;
-  title: string;
-  category: CategorySlug;
-  publishedAt: string;
-  articleId?: string;
+export interface Category {
+  slug: CategorySlug;
+  nameMarathi: string;
+  nameEnglish: string;
+  description: string;
+  accentColor: string;
 }
 
 export interface Comment {
@@ -65,4 +62,12 @@ export interface Comment {
   likes: number;
 }
 
-export type EditionCity = 'मुंबई' | 'पुणे' | 'नागपूर' | 'नाशिक' | 'छत्रपती संभाजीनगर';
+export interface BreakingItem {
+  id: string;
+  title: string;
+  timestamp: string;
+  category: CategorySlug;
+  articleId?: string;
+}
+
+export type EditionCity = 'पुणे' | 'मुंबई' | 'नागपूर' | 'नाशिक' | 'छत्रपती संभाजीनगर';

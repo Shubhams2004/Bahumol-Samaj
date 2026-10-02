@@ -1,67 +1,68 @@
 import { useState, useEffect } from 'react';
+import { EditionCity } from '../types/news';
 
 export type FontSizeOption = 'sm' | 'md' | 'lg';
 
-const FONT_SIZE_KEY = 'bahumol_font_size';
-const BOOKMARKS_KEY = 'bahumol_bookmarks';
-
-export const getSavedFontSize = (): FontSizeOption => {
-  try {
-    const saved = localStorage.getItem(FONT_SIZE_KEY);
-    if (saved === 'sm' || saved === 'md' || saved === 'lg') {
-      return saved;
-    }
-  } catch {
-    // ignore
-  }
-  return 'md';
-};
-
-export const setSavedFontSize = (size: FontSizeOption) => {
-  try {
-    localStorage.setItem(FONT_SIZE_KEY, size);
-  } catch {
-    // ignore
-  }
-};
-
-export const getSavedBookmarks = (): string[] => {
-  try {
-    const saved = localStorage.getItem(BOOKMARKS_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-};
-
-export const toggleBookmarkInStorage = (articleId: string): boolean => {
-  try {
-    const current = getSavedBookmarks();
-    const exists = current.includes(articleId);
-    const updated = exists ? current.filter((id) => id !== articleId) : [...current, articleId];
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updated));
-    return !exists;
-  } catch {
-    return false;
-  }
+const STORAGE_KEYS = {
+  FONT_SIZE: 'bahumol_font_size',
+  BOOKMARKS: 'bahumol_bookmarks',
+  EDITION: 'bahumol_edition',
 };
 
 export const useReadingPreferences = () => {
-  const [fontSize, setFontSizeState] = useState<FontSizeOption>(getSavedFontSize);
-  const [bookmarks, setBookmarks] = useState<string[]>(getSavedBookmarks);
+  const [fontSize, setFontSizeState] = useState<FontSizeOption>('md');
+  const [bookmarks, setBookmarksState] = useState<string[]>([]);
+  const [edition, setEditionState] = useState<EditionCity>('पुणे');
+
+  useEffect(() => {
+    try {
+      const savedFontSize = localStorage.getItem(STORAGE_KEYS.FONT_SIZE) as FontSizeOption;
+      if (savedFontSize && ['sm', 'md', 'lg'].includes(savedFontSize)) {
+        setFontSizeState(savedFontSize);
+      }
+
+      const savedBookmarks = localStorage.getItem(STORAGE_KEYS.BOOKMARKS);
+      if (savedBookmarks) {
+        setBookmarksState(JSON.parse(savedBookmarks));
+      }
+
+      const savedEdition = localStorage.getItem(STORAGE_KEYS.EDITION) as EditionCity;
+      if (savedEdition) {
+        setEditionState(savedEdition);
+      }
+    } catch {
+      // LocalStorage access fallback
+    }
+  }, []);
 
   const setFontSize = (size: FontSizeOption) => {
     setFontSizeState(size);
-    setSavedFontSize(size);
+    try {
+      localStorage.setItem(STORAGE_KEYS.FONT_SIZE, size);
+    } catch {}
   };
 
-  const toggleBookmark = (id: string) => {
-    const isNowBookmarked = toggleBookmarkInStorage(id);
-    setBookmarks(getSavedBookmarks());
-    return isNowBookmarked;
+  const toggleBookmark = (articleId: string) => {
+    setBookmarksState((prev) => {
+      const exists = prev.includes(articleId);
+      const updated = exists ? prev.filter((id) => id !== articleId) : [...prev, articleId];
+      try {
+        localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
-  const isBookmarked = (id: string) => bookmarks.includes(id);
+  const isBookmarked = (articleId: string): boolean => {
+    return bookmarks.includes(articleId);
+  };
+
+  const setEdition = (city: EditionCity) => {
+    setEditionState(city);
+    try {
+      localStorage.setItem(STORAGE_KEYS.EDITION, city);
+    } catch {}
+  };
 
   return {
     fontSize,
@@ -69,5 +70,7 @@ export const useReadingPreferences = () => {
     bookmarks,
     toggleBookmark,
     isBookmarked,
+    edition,
+    setEdition,
   };
 };

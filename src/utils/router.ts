@@ -9,39 +9,33 @@ export interface RouteState {
   };
 }
 
-export const getCurrentPathString = (): string => {
+/**
+ * Cloudflare Pages & SPA Compatible Route Parser
+ * Supports both clean hash routing (#/category/maharashtra) and direct pathnames (/category/maharashtra)
+ * routed via Cloudflare Pages public/_redirects fallback.
+ */
+export const getCurrentPath = (): string => {
   if (typeof window === 'undefined') return '';
   if (window.location.hash) {
     return window.location.hash.replace(/^#\/?/, '');
   }
-  // Fallback for direct deep links handled by GitHub Pages 404.html
-  // Extracts subpath after /Bahumol-Samaj/
-  const pathname = window.location.pathname
-    .replace(/^\/Bahumol-Samaj\/?/i, '')
-    .replace(/^\//, '');
-
+  const pathname = window.location.pathname.replace(/^\//, '');
   if (pathname && !pathname.endsWith('.html') && pathname !== 'index') {
-    // Seamlessly normalize to hash route for consistent SPA behavior
-    try {
-      window.history.replaceState(null, '', `${window.location.pathname.split('/')[0]}#/${pathname}`);
-    } catch {
-      window.location.hash = `#/${pathname}`;
-    }
     return pathname;
   }
   return '';
 };
 
-export const parseHash = (hash?: string): RouteState => {
-  const cleanHash = (hash !== undefined ? hash.replace(/^#\/?/, '') : getCurrentPathString()).trim();
+export const parseHash = (hashString?: string): RouteState => {
+  const cleanPath = (hashString !== undefined ? hashString.replace(/^#\/?/, '') : getCurrentPath()).trim();
 
-  if (!cleanHash) {
+  if (!cleanPath) {
     return { page: 'home', params: {} };
   }
 
-  // Check search
-  if (cleanHash.startsWith('search')) {
-    const queryPart = cleanHash.includes('?') ? cleanHash.split('?')[1] : '';
+  // Check search route
+  if (cleanPath.startsWith('search')) {
+    const queryPart = cleanPath.includes('?') ? cleanPath.split('?')[1] : '';
     const urlParams = new URLSearchParams(queryPart);
     return {
       page: 'search',
@@ -49,7 +43,7 @@ export const parseHash = (hash?: string): RouteState => {
     };
   }
 
-  const parts = cleanHash.split('/');
+  const parts = cleanPath.split('/');
 
   if (parts[0] === 'category' && parts[1]) {
     return {
@@ -100,7 +94,12 @@ export const useRouter = () => {
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
   }, []);
 
   return {

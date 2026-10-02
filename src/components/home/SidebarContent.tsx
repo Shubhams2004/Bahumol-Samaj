@@ -1,9 +1,7 @@
 import React from 'react';
 import { Article } from '../../types/news';
-import { ALL_CATEGORIES } from '../../data/categories';
-import { toMarathiDigits, getRelativeTimeMarathi } from '../../utils/dateFormatter';
-import { TrendingUp, BookOpen, Calendar, FileText, Send, Eye } from 'lucide-react';
-import { ImageWithFallback } from '../common/ImageWithFallback';
+import { toMarathiDigits } from '../../utils/dateFormatter';
+import { TrendingUp, BookOpen, Send, Calendar, FileText } from 'lucide-react';
 
 interface SidebarContentProps {
   trendingArticles: Article[];
@@ -17,83 +15,75 @@ interface SidebarContentProps {
 
 export const SidebarContent: React.FC<SidebarContentProps> = ({
   trendingArticles,
-  mostReadArticles,
   editorialArticle,
   onSelectArticle,
-  onSelectCategory,
   onNavigateEpaper,
   onNavigateContact,
 }) => {
   return (
-    <aside className="space-y-6">
-      {/* 1. Trending Stories (ट्रेंडिंग / सर्वाधिक वाचलेल्या) */}
+    <aside className="space-y-8">
+      {/* 1. Trending News (ट्रेंडिंग बातम्या) */}
       <div className="bg-white p-5 rounded border border-stone-200 shadow-xs">
         <div className="flex items-center gap-2 border-b-2 border-red-700 pb-2 mb-4">
-          <TrendingUp className="w-4 h-4 text-red-700" />
-          <h3 className="text-base font-bold font-serif text-stone-900 uppercase tracking-wide">
-            ट्रेंडिंग बातम्या (Trending)
+          <TrendingUp className="w-5 h-5 text-red-700" />
+          <h3 className="font-serif font-black text-stone-900 text-lg uppercase tracking-tight">
+            ट्रेंडिंग बातम्या (Top 5)
           </h3>
         </div>
 
         <div className="divide-y divide-stone-100">
-          {trendingArticles.slice(0, 5).map((article, index) => {
-            const cat = ALL_CATEGORIES.find((c) => c.slug === article.category);
-            return (
-              <div
-                key={article.id}
-                onClick={() => onSelectArticle(article.id)}
-                className="py-3 first:pt-0 last:pb-0 flex items-start gap-3 group cursor-pointer"
-              >
-                {/* Number Badge (1, 2, 3...) in Marathi typography */}
-                <span className="shrink-0 w-6 h-6 rounded-full bg-stone-100 text-stone-800 text-xs font-bold flex items-center justify-center font-serif group-hover:bg-red-700 group-hover:text-white transition-colors">
-                  {toMarathiDigits(index + 1)}
-                </span>
+          {trendingArticles.slice(0, 5).map((article, idx) => (
+            <div
+              key={article.id}
+              onClick={() => onSelectArticle(article.id)}
+              className="py-3 first:pt-0 last:pb-0 flex items-start gap-3.5 group cursor-pointer"
+            >
+              {/* Marathi Numeric Badge */}
+              <span className="text-2xl font-black font-serif text-stone-300 group-hover:text-red-700 transition-colors w-6 text-center shrink-0">
+                {toMarathiDigits(idx + 1)}
+              </span>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-sans mb-1">
-                    <span className="text-red-700 font-semibold">{cat?.nameMarathi}</span>
-                    <span>·</span>
-                    <span>{getRelativeTimeMarathi(article.publishedAt)}</span>
-                  </div>
-                  <h4 className="text-xs sm:text-sm font-semibold font-serif text-stone-900 group-hover:text-red-800 transition-colors line-clamp-2 leading-snug">
-                    {article.title}
-                  </h4>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-xs sm:text-sm font-bold font-serif text-stone-900 group-hover:text-red-800 transition-colors leading-snug line-clamp-2">
+                  {article.title}
+                </h4>
+                <div className="flex items-center gap-2 text-[10px] text-stone-400 mt-1 font-sans">
+                  <span>{article.location}</span>
+                  <span>·</span>
+                  <span>{toMarathiDigits(article.viewsCount)} वाचक</span>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 2. Editorial Highlight (बहुमोल विचार / अग्रलेख) */}
+      {/* 2. Editorial Column: बहुमोल विचार */}
       {editorialArticle && (
-        <div className="bg-stone-900 text-stone-100 p-5 rounded border border-stone-800 shadow-sm relative overflow-hidden">
-          <div className="flex items-center justify-between border-b border-stone-700 pb-2 mb-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400 font-serif">
-                बहुमोल विचार • अग्रलेख
-              </span>
-            </div>
-            <span className="text-[10px] text-stone-400 font-sans">मुख्य संपादक</span>
+        <div className="bg-amber-50/60 p-5 rounded border-l-4 border-amber-600 shadow-xs">
+          <div className="flex items-center gap-2 mb-2 text-amber-900">
+            <BookOpen className="w-4 h-4 text-amber-700" />
+            <span className="text-xs font-bold uppercase tracking-wider font-sans">
+              संपादकीय स्तंभ
+            </span>
           </div>
 
           <h4
             onClick={() => onSelectArticle(editorialArticle.id)}
-            className="text-sm sm:text-base font-bold font-serif text-white hover:text-amber-300 transition-colors cursor-pointer leading-snug mb-2"
+            className="text-base font-bold font-serif text-stone-950 hover:text-red-800 transition-colors cursor-pointer leading-snug mb-2"
           >
             {editorialArticle.title}
           </h4>
 
-          <p className="text-xs text-stone-300 line-clamp-3 leading-relaxed mb-4 font-sans">
+          <p className="text-xs text-stone-700 font-sans line-clamp-3 leading-relaxed mb-3">
             {editorialArticle.excerpt}
           </p>
 
-          <div className="flex items-center justify-between pt-2 border-t border-stone-800 text-xs text-stone-400">
-            <span>{editorialArticle.author.name}</span>
+          <div className="flex items-center justify-between text-xs text-stone-600 border-t border-amber-200/60 pt-2 font-sans">
+            <span className="font-semibold">{editorialArticle.author.name}</span>
             <button
               onClick={() => onSelectArticle(editorialArticle.id)}
-              className="text-amber-400 hover:text-white font-medium cursor-pointer"
+              className="text-red-800 font-bold hover:underline cursor-pointer"
             >
               पूर्ण अग्रलेख वाचा &rarr;
             </button>
@@ -101,56 +91,62 @@ export const SidebarContent: React.FC<SidebarContentProps> = ({
         </div>
       )}
 
-      {/* 3. e-Paper Preview Box */}
-      <div className="bg-stone-50 border border-stone-200 rounded p-4 text-center">
-        <FileText className="w-8 h-8 text-red-700 mx-auto mb-2" />
-        <h4 className="text-sm font-bold font-serif text-stone-900 mb-1">
-          बहुमोल समाज डिजिटल ई-पेपर
-        </h4>
-        <p className="text-xs text-stone-500 mb-3 font-sans">
-          आजचा संपूर्ण वृत्तपत्र डिजिटल स्वरूपात वाचा व मोफत पीडीएफ डाऊनलोड करा.
+      {/* 3. Dinvishesh (दिनविशेष - Today in History) */}
+      <div className="bg-white p-5 rounded border border-stone-200 shadow-xs">
+        <div className="flex items-center gap-2 border-b-2 border-stone-900 pb-2 mb-3">
+          <Calendar className="w-4 h-4 text-stone-700" />
+          <h3 className="font-serif font-black text-stone-900 text-base uppercase">
+            आजचा दिनविशेष (History)
+          </h3>
+        </div>
+        <p className="text-xs text-stone-700 leading-relaxed font-sans mb-2">
+          महाराष्ट्रातील थोर विचारवंत, समाजसुधारक व क्रांतीकारकांच्या स्मृतींचे स्मरण.
+          सत्यशोधक समाज आणि पुरोगामी चळवळींच्या ऐतिहासिक ठरावांची पार्श्वभूमी.
         </p>
-        <button
-          onClick={onNavigateEpaper}
-          className="w-full py-2 bg-stone-900 hover:bg-red-800 text-white text-xs font-bold rounded transition-colors cursor-pointer"
-        >
-          ई-पेपर आवृत्ती उघडा
-        </button>
+        <span className="text-[11px] font-bold text-red-700 font-sans block">
+          “ज्ञान हेच माणसाचे खरे भूषण आहे.”
+        </span>
       </div>
 
-      {/* 4. Dinvishesh (दिनविशेष - On this day) */}
-      <div className="bg-white p-5 rounded border border-stone-200 shadow-xs">
-        <div className="flex items-center gap-2 border-b border-stone-200 pb-2 mb-3">
-          <Calendar className="w-4 h-4 text-stone-700" />
-          <h4 className="text-sm font-bold font-serif text-stone-900">
-            दिनविशेष (आजचा इतिहास)
+      {/* 4. Citizen Journalism: बातमीदार व्हा */}
+      <div className="bg-stone-900 text-white p-5 rounded shadow-sm space-y-3">
+        <div className="flex items-center gap-2 text-red-500">
+          <Send className="w-4 h-4" />
+          <h4 className="text-sm font-bold font-serif uppercase tracking-wider text-white">
+            नागरिक बातमीदार
           </h4>
         </div>
-        <div className="space-y-2.5 text-xs text-stone-700 font-sans">
-          <p className="leading-relaxed">
-            <span className="font-bold text-red-700">१ ऑक्टोबर:</span> आंतरराष्ट्रीय ज्येष्ठ नागरिक दिन आणि राष्ट्रीय रक्तदान दिन.
-          </p>
-          <p className="leading-relaxed text-stone-600">
-            महाराष्ट्रातील समाजसुधारक आणि थोर विचारवंतांच्या विचारांचा वारसा जपत लोककल्याणाचा संकल्प.
-          </p>
-        </div>
-      </div>
-
-      {/* 5. Citizen Reporter / Tip Submission Widget */}
-      <div className="bg-amber-50/80 border border-amber-200 p-4 rounded text-xs space-y-2">
-        <div className="flex items-center gap-2 text-amber-900 font-bold font-serif">
-          <Send className="w-3.5 h-3.5 text-red-700" />
-          <span>बातमीदार व्हा (Citizen Reporter)</span>
-        </div>
-        <p className="text-stone-600 leading-relaxed font-sans">
-          आपल्या गावातील, शहरातील किंवा परिसरातील समस्या अथवा महत्त्वाच्या घडामोडींचे फोटो व माहिती पाठवा.
+        <p className="text-xs text-stone-300 font-sans leading-relaxed">
+          आपल्या परिसरातील समस्या, महत्त्वाच्या घटना अथवा विकासकामांची बातमी थेट आमच्या संपादकीय विभागाकडे पाठवा.
         </p>
         <button
           onClick={onNavigateContact}
-          className="text-red-700 font-bold hover:underline cursor-pointer block"
+          className="w-full py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded cursor-pointer transition-colors font-sans"
         >
-          संपादकीय विभागाला माहिती पाठवा &rarr;
+          बातमी पाठवा (Send News Tip) &rarr;
         </button>
+      </div>
+
+      {/* 5. ePaper Broadsheet Promo */}
+      <div
+        onClick={onNavigateEpaper}
+        className="p-5 bg-gradient-to-br from-red-900 to-stone-900 text-white rounded cursor-pointer shadow-md group"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-300">
+            आजचा अंक
+          </span>
+          <FileText className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+        </div>
+        <h4 className="text-lg font-bold font-serif group-hover:text-amber-200 transition-colors">
+          डिजिटल ई-पेपर आवृत्ती
+        </h4>
+        <p className="text-xs text-stone-300 font-sans mt-1">
+          पुणे, मुंबई व नाशिक आवृत्त्यांचे पान-दर-पान संपूर्ण वृत्तपत्र वाचा.
+        </p>
+        <span className="inline-block mt-3 text-xs font-bold text-amber-300 group-hover:underline">
+          ई-पेपर उघडा &rarr;
+        </span>
       </div>
     </aside>
   );

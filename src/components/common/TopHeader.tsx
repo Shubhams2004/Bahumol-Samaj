@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { ALL_CATEGORIES } from '../../data/categories';
-import { getMarathiCurrentDate } from '../../utils/dateFormatter';
+import { getMarathiCurrentDate, toMarathiDigits } from '../../utils/dateFormatter';
 import { FontSizeOption } from '../../utils/readingPreferences';
 import { EditionCity } from '../../types/news';
 import {
   Search,
-  Menu,
-  X,
   Bookmark,
   FileText,
-  CloudSun,
+  Menu,
+  X,
+  Sun,
+  MapPin,
   ChevronDown,
-  Share2,
+  Info,
+  PhoneCall,
 } from 'lucide-react';
 
 interface TopHeaderProps {
@@ -28,14 +30,6 @@ interface TopHeaderProps {
   bookmarksCount: number;
 }
 
-const CITY_WEATHER: Record<EditionCity, { temp: string; condition: string }> = {
-  मुंबई: { temp: '३१°C', condition: 'निरभ्र' },
-  पुणे: { temp: '२८°C', condition: 'आल्हाददायक' },
-  नागपूर: { temp: '३३°C', condition: 'उबदार' },
-  नाशिक: { temp: '२७°C', condition: 'थंड हवा' },
-  'छत्रपती संभाजीनगर': { temp: '३०°C', condition: 'निरभ्र' },
-};
-
 export const TopHeader: React.FC<TopHeaderProps> = ({
   currentCategorySlug,
   onSelectCategory,
@@ -49,349 +43,274 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onChangeFontSize,
   bookmarksCount,
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<EditionCity>('मुंबई');
-  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
-
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<EditionCity>('पुणे');
   const { formattedDate, tithiInfo } = getMarathiCurrentDate();
-  const weather = CITY_WEATHER[selectedCity];
+
+  const cities: EditionCity[] = ['पुणे', 'मुंबई', 'नागपूर', 'नाशिक', 'छत्रपती संभाजीनगर'];
+
+  const handleCategoryClick = (slug: string) => {
+    onSelectCategory(slug);
+    setIsMobileMenuOpen(false);
+  };
 
   return (
-    <header className="bg-white border-b border-stone-300 relative z-30 select-none">
-      {/* 1. Top Utility Strip */}
-      <div className="bg-stone-100 border-b border-stone-200 text-stone-700 text-xs py-1.5 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-2">
-          {/* Date, Panchang & City Weather */}
-          <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-            <span className="font-medium text-stone-800">{formattedDate}</span>
+    <header className="w-full bg-white border-b-2 border-stone-900 sticky top-0 z-40 shadow-xs">
+      {/* 1. Topmost Utility Bar */}
+      <div className="bg-stone-900 text-stone-200 text-xs py-1.5 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-y-1">
+          {/* Left: Date & Panchang */}
+          <div className="flex items-center gap-2 sm:gap-4 font-sans text-[11px] sm:text-xs">
+            <span className="font-semibold text-white">{formattedDate}</span>
             <span className="hidden md:inline text-stone-400">|</span>
-            <span className="hidden md:inline text-stone-600">{tithiInfo}</span>
-            <span className="hidden sm:inline text-stone-400">|</span>
-
-            {/* Edition City Selector */}
-            <div className="relative inline-block">
-              <button
-                onClick={() => setCityDropdownOpen(!cityDropdownOpen)}
-                className="flex items-center gap-1 text-stone-700 hover:text-red-700 font-medium cursor-pointer"
-                title="आवृत्ती बदला"
-              >
-                <span>आवृत्ती: {selectedCity}</span>
-                <ChevronDown className="w-3 h-3 text-stone-500" />
-              </button>
-
-              {cityDropdownOpen && (
-                <div className="absolute left-0 mt-1 w-44 bg-white border border-stone-200 rounded shadow-lg py-1 z-50">
-                  {(Object.keys(CITY_WEATHER) as EditionCity[]).map((city) => (
-                    <button
-                      key={city}
-                      onClick={() => {
-                        setSelectedCity(city);
-                        setCityDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-stone-100 flex items-center justify-between ${
-                        selectedCity === city ? 'font-bold text-red-700 bg-red-50' : 'text-stone-800'
-                      }`}
-                    >
-                      <span>{city}</span>
-                      <span className="text-[10px] text-stone-500">{CITY_WEATHER[city].temp}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Live Weather */}
-            <div className="hidden lg:flex items-center gap-1 text-stone-600 font-sans">
-              <CloudSun className="w-3.5 h-3.5 text-amber-600" />
-              <span>{weather.temp}</span>
-              <span className="text-stone-400">({weather.condition})</span>
-            </div>
+            <span className="hidden md:inline text-amber-300 font-medium">{tithiInfo}</span>
           </div>
 
-          {/* Right Utility: Font Sizer, Bookmarks, ePaper */}
-          <div className="flex items-center gap-3">
-            {/* Font Resizer */}
-            <div className="flex items-center gap-1 border border-stone-300 rounded px-1.5 py-0.5 bg-white">
-              <span className="text-[11px] text-stone-500 mr-1 hidden sm:inline">फॉन्ट:</span>
+          {/* Right: Weather, City Edition, Font Size Adjuster, e-Paper */}
+          <div className="flex items-center gap-3 sm:gap-5 text-[11px] sm:text-xs font-sans">
+            {/* Live Weather */}
+            <div className="hidden lg:flex items-center gap-1.5 text-stone-300">
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>{selectedCity} २८° से.</span>
+            </div>
+
+            {/* Edition Switcher */}
+            <div className="relative flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-red-500" />
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value as EditionCity)}
+                className="bg-stone-800 text-stone-100 text-[11px] rounded px-1.5 py-0.5 border border-stone-700 cursor-pointer focus:outline-none"
+                aria-label="आवृत्ती निवडा"
+              >
+                {cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city} आवृत्ती
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Senior/Reading Font Size Adjuster */}
+            <div className="flex items-center gap-0.5 border border-stone-700 rounded px-1 py-0.5 bg-stone-800">
+              <span className="text-[10px] text-stone-400 mr-1 hidden sm:inline">फॉन्ट:</span>
               <button
                 onClick={() => onChangeFontSize('sm')}
-                className={`px-1 rounded text-[11px] font-bold ${fontSize === 'sm' ? 'bg-red-700 text-white' : 'text-stone-700 hover:bg-stone-100'}`}
-                title="लहान अक्षर"
+                className={`px-1 rounded text-[11px] font-bold transition-colors cursor-pointer ${
+                  fontSize === 'sm' ? 'bg-red-700 text-white' : 'text-stone-300 hover:text-white'
+                }`}
+                title="लहान फॉन्ट"
               >
                 अ-
               </button>
               <button
                 onClick={() => onChangeFontSize('md')}
-                className={`px-1 rounded text-xs font-bold ${fontSize === 'md' ? 'bg-red-700 text-white' : 'text-stone-700 hover:bg-stone-100'}`}
-                title="मध्यम अक्षर"
+                className={`px-1 rounded text-[11px] font-bold transition-colors cursor-pointer ${
+                  fontSize === 'md' ? 'bg-red-700 text-white' : 'text-stone-300 hover:text-white'
+                }`}
+                title="मध्यम फॉन्ट"
               >
                 अ
               </button>
               <button
                 onClick={() => onChangeFontSize('lg')}
-                className={`px-1 rounded text-sm font-bold ${fontSize === 'lg' ? 'bg-red-700 text-white' : 'text-stone-700 hover:bg-stone-100'}`}
-                title="मोठे अक्षर"
+                className={`px-1 rounded text-[11px] font-bold transition-colors cursor-pointer ${
+                  fontSize === 'lg' ? 'bg-red-700 text-white' : 'text-stone-300 hover:text-white'
+                }`}
+                title="मोठा फॉन्ट"
               >
                 अ+
               </button>
             </div>
 
-            {/* Saved Articles */}
-            <button
-              onClick={onNavigateBookmarks}
-              className="flex items-center gap-1 text-stone-700 hover:text-red-700 font-medium cursor-pointer"
-              title="जतन केलेल्या बातम्या"
-            >
-              <Bookmark className="w-3.5 h-3.5 text-stone-500" />
-              <span className="hidden sm:inline">जतन</span>
-              {bookmarksCount > 0 && (
-                <span className="bg-red-700 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-sans">
-                  {bookmarksCount}
-                </span>
-              )}
-            </button>
-
-            {/* ePaper link */}
+            {/* e-Paper Link */}
             <button
               onClick={onNavigateEpaper}
-              className="flex items-center gap-1 text-red-700 hover:text-red-800 font-bold cursor-pointer border-l border-stone-300 pl-3"
-              title="ई-पेपर वाचा"
+              className="flex items-center gap-1 text-amber-300 hover:text-amber-200 font-bold cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5" />
               <span>ई-पेपर</span>
             </button>
+
+            {/* Bookmarks Link */}
+            <button
+              onClick={onNavigateBookmarks}
+              className="flex items-center gap-1 text-stone-300 hover:text-white cursor-pointer relative"
+              title="जतन केलेल्या बातम्या"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">जतन</span>
+              {bookmarksCount > 0 && (
+                <span className="bg-red-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {toMarathiDigits(bookmarksCount)}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 2. Newspaper Broadsheet Masthead */}
-      <div className="py-4 sm:py-6 px-4 sm:px-6 border-b border-stone-200 bg-white">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Left Corner Marker */}
-          <div className="hidden md:flex flex-col text-left text-xs text-stone-500 w-1/4">
-            <span className="font-semibold text-stone-700">महाराष्ट्र आवृत्ती</span>
-            <span>RNI क्र.: MAHMAR/2024/88921</span>
-            <span>पुणे • मुंबई • नागपूर • संभाजीनगर</span>
-          </div>
-
-          {/* Central Newspaper Masthead Title */}
-          <div className="text-center cursor-pointer group flex-1" onClick={onNavigateHome}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-stone-900 group-hover:text-red-800 transition-colors font-serif leading-none">
-              बहुमोल समाज
-            </h1>
-            <p className="mt-2 text-xs sm:text-sm font-medium tracking-wide text-stone-600 font-sans">
-              निष्पक्ष • निर्भीक • जनहितैषी मराठी डिजिटल दैनिक
-            </p>
-          </div>
-
-          {/* Right Corner Information / Digital QR or Motto */}
-          <div className="hidden md:flex flex-col items-end text-right text-xs text-stone-500 w-1/4">
-            <span className="font-semibold text-stone-800">सत्य, शोध आणि लोकजागर</span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-              <span className="text-emerald-700 font-medium">२४x७ डिजिटल अपडेट्स</span>
-            </div>
-            <span className="text-[11px] text-stone-400 mt-0.5">वेबसाइट: bahumolsamaj.com</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Main Navigation Bar (Clean top bar contract) */}
-      <div className="bg-stone-900 text-stone-100 shadow-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-12">
+      {/* 2. Main Newspaper Masthead */}
+      <div className="py-4 sm:py-6 px-4 sm:px-6 border-b border-stone-200">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Mobile Menu Button */}
           <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden p-2 text-stone-200 hover:text-white hover:bg-stone-800 rounded focus:outline-none"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden p-2 text-stone-800 hover:bg-stone-100 rounded cursor-pointer"
             aria-label="मेनू उघडा"
           >
-            <Menu className="w-5 h-5" />
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          {/* Home Icon/Title for Mobile */}
-          <button
-            onClick={onNavigateHome}
-            className="md:hidden text-lg font-bold font-serif text-white tracking-wide"
-          >
-            बहुमोल समाज
-          </button>
+          {/* Central Newspaper Masthead Title */}
+          <div className="text-center flex-1 cursor-pointer" onClick={onNavigateHome}>
+            <div className="inline-block">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black font-headline tracking-tight text-stone-950 hover:text-red-800 transition-colors">
+                बहुमोल समाज
+              </h1>
+              <div className="flex items-center justify-center gap-2 mt-1 sm:mt-1.5">
+                <span className="h-px bg-stone-300 w-8 sm:w-16 hidden sm:block" />
+                <p className="text-[10px] sm:text-xs text-stone-600 font-sans tracking-wide uppercase font-semibold">
+                  निष्पक्ष • निर्भीक • जनहितैषी मराठी डिजिटल दैनिक
+                </p>
+                <span className="h-px bg-stone-300 w-8 sm:w-16 hidden sm:block" />
+              </div>
+            </div>
+          </div>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2 overflow-x-auto no-scrollbar py-1">
+          {/* Search Trigger (Desktop & Mobile) */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={onNavigateHome}
-              className={`px-3 py-1.5 text-sm font-semibold rounded transition-colors whitespace-nowrap cursor-pointer ${
-                !currentCategorySlug
-                  ? 'bg-red-700 text-white shadow-sm'
-                  : 'text-stone-200 hover:text-white hover:bg-stone-800'
-              }`}
+              onClick={onOpenSearch}
+              className="p-2 sm:px-3 sm:py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-md border border-stone-300 flex items-center gap-2 text-xs font-semibold cursor-pointer transition-colors"
+              title="शोध"
             >
-              मुख्यपृष्ठ
+              <Search className="w-4 h-4 text-stone-600" />
+              <span className="hidden sm:inline">शोध (Search)</span>
             </button>
+          </div>
+        </div>
+      </div>
 
+      {/* 3. Category Navigation Bar (Desktop) */}
+      <nav className="hidden lg:block bg-stone-50 border-t border-stone-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <ul className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
+            <li>
+              <button
+                onClick={onNavigateHome}
+                className={`px-3 py-2 text-sm font-bold font-sans cursor-pointer transition-colors border-b-2 ${
+                  !currentCategorySlug
+                    ? 'border-red-700 text-red-700'
+                    : 'border-transparent text-stone-800 hover:text-red-700'
+                }`}
+              >
+                मुख्यपृष्ठ
+              </button>
+            </li>
             {ALL_CATEGORIES.map((cat) => {
               const isActive = currentCategorySlug === cat.slug;
               return (
-                <button
-                  key={cat.slug}
-                  onClick={() => onSelectCategory(cat.slug)}
-                  className={`px-2.5 lg:px-3 py-1.5 text-sm font-medium rounded transition-colors whitespace-nowrap cursor-pointer ${
-                    isActive
-                      ? 'bg-red-700 text-white font-semibold shadow-sm'
-                      : 'text-stone-300 hover:text-white hover:bg-stone-800'
-                  }`}
-                >
-                  {cat.nameMarathi}
-                </button>
+                <li key={cat.slug}>
+                  <button
+                    onClick={() => handleCategoryClick(cat.slug)}
+                    className={`px-3 py-2 text-sm font-bold font-sans cursor-pointer whitespace-nowrap transition-colors border-b-2 ${
+                      isActive
+                        ? 'border-red-700 text-red-700'
+                        : 'border-transparent text-stone-800 hover:text-red-700'
+                    }`}
+                  >
+                    {cat.nameMarathi}
+                  </button>
+                </li>
               );
             })}
-          </nav>
+          </ul>
 
-          {/* Right Action Icons: Search & Share */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-3 text-xs font-sans text-stone-600 pl-4 border-l border-stone-200">
             <button
-              onClick={onOpenSearch}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-stone-200 hover:text-white hover:bg-stone-800 rounded transition-colors cursor-pointer"
-              title="बातमी शोधा"
-              aria-label="बातमी शोधा"
+              onClick={onNavigateAbout}
+              className="hover:text-red-700 font-medium cursor-pointer"
             >
-              <Search className="w-4 h-4 text-stone-300" />
-              <span className="hidden xl:inline text-stone-400">शोधा...</span>
+              आमच्याबद्दल
             </button>
-
             <button
-              onClick={onNavigateEpaper}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-stone-950 rounded transition-colors cursor-pointer whitespace-nowrap"
+              onClick={onNavigateContact}
+              className="hover:text-red-700 font-medium cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>ई-आवृत्ती</span>
+              संपर्क
             </button>
           </div>
         </div>
-      </div>
+      </nav>
 
       {/* 4. Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-stone-900/70 backdrop-blur-xs transition-opacity"
-            onClick={() => setMobileMenuOpen(false)}
-          />
+      {isMobileMenuOpen && (
+        <div className="lg:hidden bg-white border-b border-stone-300 px-4 py-4 max-h-[80vh] overflow-y-auto font-sans shadow-lg animate-in fade-in duration-200">
+          <div className="mb-4 pb-3 border-b border-stone-200 flex items-center justify-between">
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+              बातम्या विभाग (Categories)
+            </span>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-stone-500 hover:text-stone-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-          {/* Drawer Panel */}
-          <div className="relative w-4/5 max-w-sm bg-white h-full shadow-2xl flex flex-col z-10 overflow-y-auto">
-            {/* Drawer Header */}
-            <div className="p-4 bg-stone-900 text-white flex items-center justify-between border-b border-stone-800">
-              <div>
-                <span className="font-serif text-xl font-bold tracking-tight">बहुमोल समाज</span>
-                <p className="text-[11px] text-stone-400">मराठी डिजिटल वृत्तपत्र</p>
-              </div>
+          <div className="grid grid-cols-2 gap-2 mb-6">
+            <button
+              onClick={() => {
+                onNavigateHome();
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2.5 bg-stone-50 hover:bg-red-50 text-left rounded font-bold text-sm text-stone-900 cursor-pointer"
+            >
+              मुख्यपृष्ठ
+            </button>
+            {ALL_CATEGORIES.map((cat) => (
               <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-stone-400 hover:text-white rounded"
-                aria-label="मेनू बंद करा"
+                key={cat.slug}
+                onClick={() => handleCategoryClick(cat.slug)}
+                className="p-2.5 bg-stone-50 hover:bg-red-50 text-left rounded font-bold text-sm text-stone-900 cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                {cat.nameMarathi}
               </button>
-            </div>
+            ))}
+          </div>
 
-            {/* Quick Actions in Mobile Drawer */}
-            <div className="p-3 bg-stone-100 border-b border-stone-200 grid grid-cols-2 gap-2 text-xs">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenSearch();
-                }}
-                className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-stone-300 rounded font-medium text-stone-800"
-              >
-                <Search className="w-3.5 h-3.5 text-stone-600" />
-                <span>बातमी शोधा</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateBookmarks();
-                }}
-                className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-stone-300 rounded font-medium text-stone-800"
-              >
-                <Bookmark className="w-3.5 h-3.5 text-stone-600" />
-                <span>जतन ({bookmarksCount})</span>
-              </button>
-            </div>
-
-            {/* Category Navigation Links */}
-            <div className="py-2 flex-1">
-              <div className="px-4 py-2 text-xs font-bold text-stone-400 uppercase tracking-wider">
-                वृत्त विभाग
-              </div>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateHome();
-                }}
-                className={`w-full text-left px-5 py-3 text-sm font-medium border-b border-stone-100 flex items-center justify-between ${
-                  !currentCategorySlug ? 'text-red-700 font-bold bg-red-50' : 'text-stone-800'
-                }`}
-              >
-                <span>मुख्यपृष्ठ (Home)</span>
-              </button>
-
-              {ALL_CATEGORIES.map((cat) => {
-                const isActive = currentCategorySlug === cat.slug;
-                return (
-                  <button
-                    key={cat.slug}
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      onSelectCategory(cat.slug);
-                    }}
-                    className={`w-full text-left px-5 py-3 text-sm font-medium border-b border-stone-100 flex items-center justify-between ${
-                      isActive ? 'text-red-700 font-bold bg-red-50' : 'text-stone-800'
-                    }`}
-                  >
-                    <span>{cat.nameMarathi}</span>
-                    <span className="text-xs text-stone-400 font-sans">{cat.nameEnglish}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Static pages link & Footer */}
-            <div className="p-4 bg-stone-50 border-t border-stone-200 text-xs text-stone-600 space-y-2">
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onNavigateAbout();
-                  }}
-                  className="hover:text-red-700"
-                >
-                  आमच्याबद्दल
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onNavigateContact();
-                  }}
-                  className="hover:text-red-700"
-                >
-                  संपर्क व जाहिरात
-                </button>
-                <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onNavigateEpaper();
-                  }}
-                  className="hover:text-red-700"
-                >
-                  ई-पेपर
-                </button>
-              </div>
-              <p className="text-[11px] text-stone-400 pt-2 border-t border-stone-200">
-                © २०२६ बहुमोल समाज. सर्व हक्क सुरक्षित.
-              </p>
-            </div>
+          <div className="pt-3 border-t border-stone-200 space-y-2 text-xs font-semibold text-stone-700">
+            <button
+              onClick={() => {
+                onNavigateEpaper();
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-stone-100 rounded text-left"
+            >
+              <FileText className="w-4 h-4 text-red-700" />
+              <span>डिजिटल ई-पेपर आवृत्ती</span>
+            </button>
+            <button
+              onClick={() => {
+                onNavigateAbout();
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-stone-100 rounded text-left"
+            >
+              <Info className="w-4 h-4 text-stone-600" />
+              <span>आमच्याबद्दल व संपादकीय मंडळ</span>
+            </button>
+            <button
+              onClick={() => {
+                onNavigateContact();
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center gap-2 p-2 hover:bg-stone-100 rounded text-left"
+            >
+              <PhoneCall className="w-4 h-4 text-stone-600" />
+              <span>कार्यालय संपर्क व बातमी पाठवा</span>
+            </button>
           </div>
         </div>
       )}

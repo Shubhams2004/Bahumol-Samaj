@@ -1,15 +1,6 @@
 import React from 'react';
 import { ALL_CATEGORIES } from '../../data/categories';
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Send,
-  ShieldCheck,
-  Award,
-  Globe,
-  Share2,
-} from 'lucide-react';
+import { Mail, Phone, MapPin, Shield, Award, ExternalLink, Heart } from 'lucide-react';
 
 interface FooterProps {
   onSelectCategory: (slug: string) => void;
@@ -27,191 +18,149 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigateEpaper,
 }) => {
   return (
-    <footer className="bg-stone-900 text-stone-300 border-t-4 border-red-700 font-sans">
-      {/* 1. News Tip / WhatsApp Newsletter Banner */}
-      <div className="bg-stone-950 border-b border-stone-800 py-6 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-red-700/20 text-red-500 flex items-center justify-center shrink-0 border border-red-700/40">
-              <Send className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white font-serif">
-                तुमच्या परिसरातील बातमी थेट संपादकीय मंडळाला पाठवा
-              </h3>
-              <p className="text-xs text-stone-400">
-                भ्रष्टाचार, नागरी समस्या, यशोगाथा किंवा विशेष वृत्तांत शेअर करण्यासाठी ‘बहुमोल जनसंवाद’
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={onNavigateContact}
-              className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded transition-colors cursor-pointer shadow-sm"
-            >
-              बातमी पाठवा (Send News Tip)
-            </button>
-            <button
-              onClick={onNavigateEpaper}
-              className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-semibold rounded border border-stone-700 transition-colors cursor-pointer"
-            >
-              आजचा ई-पेपर
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Footer Grid */}
+    <footer className="bg-stone-950 text-stone-300 font-sans border-t-4 border-red-700">
+      {/* 1. Main Footer Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Col 1: About Bahumol Samaj */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+          {/* Col 1 & 2: Branding & Editorial Credo */}
+          <div className="lg:col-span-2 space-y-4">
             <div>
-              <span
+              <h2
                 onClick={onNavigateHome}
-                className="text-2xl font-serif font-black text-white tracking-tight cursor-pointer hover:text-red-400 transition-colors"
+                className="text-3xl font-black font-headline text-white hover:text-red-500 cursor-pointer transition-colors"
               >
                 बहुमोल समाज
-              </span>
-              <p className="text-xs text-stone-400 mt-1 font-medium">
-                निष्पक्ष, निर्भीक आणि लोककल्याणकारी मराठी डिजिटल दैनिक
+              </h2>
+              <p className="text-xs text-stone-400 mt-1 uppercase tracking-wider font-semibold">
+                अग्रगण्य मराठी डिजिटल दैनिक वृत्तपत्र
               </p>
             </div>
 
-            <p className="text-xs text-stone-400 leading-relaxed">
-              महाराष्ट्राच्या मातीतील विचार, सामान्यांचे प्रश्न आणि जागतिक घडामोडींचे अचूक विश्लेषण
-              देणारे अग्रगण्य डिजिटल वृत्तपत्र. संविधानाची मूल्ये आणि पत्रकारितेची निष्पक्षता हीच
-              आमची ताकद आहे.
+            <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-sm">
+              ‘बहुमोल समाज’ हे महाराष्ट्रातील जनतेचा निर्भीक आवाज आहे. निष्पक्ष पत्रकारिता, संविधानाची चौकट,
+              सत्यशोधन आणि लोकशाही मूल्यांचे रक्षण हेच आमचे मूळ ध्येय आहे.
             </p>
 
-            <div className="flex items-center gap-2 pt-2 text-stone-400">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span className="text-[11px]">प्रेस कौन्सिल ऑफ इंडिया मार्गदर्शक तत्त्वानुसार संचालित</span>
-            </div>
-          </div>
-
-          {/* Col 2: News Sections */}
-          <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider font-serif mb-4 border-b border-stone-800 pb-2">
-              वृत्त विभाग (Sections)
-            </h4>
-            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
-              {ALL_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.slug}
-                  onClick={() => onSelectCategory(cat.slug)}
-                  className="text-left text-stone-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  {cat.nameMarathi}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Col 3: Editorial & Bureau Info */}
-          <div className="space-y-3 text-xs">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider font-serif mb-4 border-b border-stone-800 pb-2">
-              संपादकीय मंडळ (Editorial Desk)
-            </h4>
-            <p className="text-stone-300">
-              <span className="font-semibold text-white">मुख्य संपादक:</span> भास्करराव मोहिते
-            </p>
-            <p className="text-stone-300">
-              <span className="font-semibold text-white">निवासी संपादक (पुणे):</span> आनंद जोशी
-            </p>
-            <p className="text-stone-300">
-              <span className="font-semibold text-white">ब्युरो चीफ (मुंबई):</span> संजय कुलकर्णी
-            </p>
-
-            <div className="pt-2 border-t border-stone-800 space-y-1.5 text-stone-400">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-3.5 h-3.5 text-stone-500 shrink-0 mt-0.5" />
-                <span>संपादकीय कार्यालय: ५४०, सदाशिव पेठ, कुमठेकर रस्ता, पुणे - ४११०३०</span>
+            <div className="pt-2 text-xs text-stone-400 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span>मुख्य कार्यालय: ५४०, सदाशिव पेठ, पुणे - ४११०३०</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                <Phone className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 <span>+९१ २० २३४५ ६७८९ / ९८७६५ ४३२१०</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                <span>editor@bahumolsamaj.com</span>
+                <Mail className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span>contact@bahumolsamaj.com</span>
               </div>
             </div>
           </div>
 
-          {/* Col 4: Important Links & Social Networks */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider font-serif mb-4 border-b border-stone-800 pb-2">
-              महत्त्वाचे दुवे व धोरणे
-            </h4>
-            <div className="flex flex-col space-y-2 text-xs text-stone-400">
-              <button onClick={onNavigateAbout} className="text-left hover:text-white cursor-pointer">
-                आमच्याबद्दल (About Us)
-              </button>
-              <button onClick={onNavigateContact} className="text-left hover:text-white cursor-pointer">
-                संपर्क व जाहिरात दरपत्रक (Contact & Ads)
-              </button>
-              <button onClick={onNavigateAbout} className="text-left hover:text-white cursor-pointer">
-                संपादकीय आचारसंहिता (Editorial Guidelines)
-              </button>
-              <button onClick={onNavigateAbout} className="text-left hover:text-white cursor-pointer">
-                गोपनीयता धोरण (Privacy Policy)
-              </button>
-              <button onClick={onNavigateAbout} className="text-left hover:text-white cursor-pointer">
-                वापरण्याचे नियम व अटी (Terms of Service)
-              </button>
-            </div>
+          {/* Col 3: News Categories */}
+          <div>
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-4 border-b border-stone-800 pb-2 font-serif">
+              बातम्या विभाग
+            </h3>
+            <ul className="space-y-2 text-xs">
+              {ALL_CATEGORIES.slice(0, 6).map((cat) => (
+                <li key={cat.slug}>
+                  <button
+                    onClick={() => onSelectCategory(cat.slug)}
+                    className="hover:text-amber-400 transition-colors cursor-pointer text-left"
+                  >
+                    {cat.nameMarathi} ({cat.nameEnglish})
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            {/* Social channels */}
-            <div className="pt-2">
-              <span className="text-xs font-semibold text-stone-300 block mb-2">आमच्याशी जोडा:</span>
-              <div className="flex items-center gap-2 text-xs">
-                <a
-                  href="https://whatsapp.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 bg-stone-800 hover:bg-emerald-700 hover:text-white rounded text-stone-300 transition-colors"
+          {/* Col 4: More Categories & Features */}
+          <div>
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-4 border-b border-stone-800 pb-2 font-serif">
+              विशेष दालने
+            </h3>
+            <ul className="space-y-2 text-xs">
+              {ALL_CATEGORIES.slice(6).map((cat) => (
+                <li key={cat.slug}>
+                  <button
+                    onClick={() => onSelectCategory(cat.slug)}
+                    className="hover:text-amber-400 transition-colors cursor-pointer text-left"
+                  >
+                    {cat.nameMarathi} ({cat.nameEnglish})
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button
+                  onClick={onNavigateEpaper}
+                  className="text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer"
                 >
-                  व्हॉट्सॲप
-                </a>
-                <a
-                  href="https://telegram.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 bg-stone-800 hover:bg-sky-600 hover:text-white rounded text-stone-300 transition-colors"
+                  डिजिटल ई-पेपर आवृत्ती
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 5: Editorial Governance & Trust */}
+          <div className="space-y-4">
+            <h3 className="text-white text-sm font-bold uppercase tracking-wider border-b border-stone-800 pb-2 font-serif">
+              संपादकीय मंडळ
+            </h3>
+            <div className="text-xs space-y-2 text-stone-400">
+              <p>
+                <strong className="text-stone-200 block">मुख्य संपादक:</strong>
+                भास्करराव मोहिते
+              </p>
+              <p>
+                <strong className="text-stone-200 block">निवासी संपादक (पुणे):</strong>
+                आनंद जोशी
+              </p>
+              <p>
+                <strong className="text-stone-200 block">ब्युरो चीफ (मुंबई):</strong>
+                संजय कुलकर्णी
+              </p>
+              <div className="pt-2">
+                <button
+                  onClick={onNavigateContact}
+                  className="w-full py-2 px-3 bg-red-700 hover:bg-red-800 text-white rounded text-xs font-bold text-center transition-colors cursor-pointer"
                 >
-                  टेलिग्राम
-                </a>
-                <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 bg-stone-800 hover:bg-blue-700 hover:text-white rounded text-stone-300 transition-colors"
-                >
-                  फेसबुक
-                </a>
-                <a
-                  href="https://twitter.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2.5 py-1.5 bg-stone-800 hover:bg-stone-700 hover:text-white rounded text-stone-300 transition-colors"
-                >
-                  X (ट्विटर)
-                </a>
+                  बातमी पाठवा / संपर्क
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. Bottom Copyright Bar */}
-      <div className="bg-stone-950 border-t border-stone-800 text-[11px] text-stone-500 py-4 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-          <p>© २०२६ बहुमोल समाज माध्यम समूह (Bahumol Samaj Media Group). सर्व हक्क सुरक्षित.</p>
-          <p>
-            वेब डिझाईन व तंत्रज्ञान: <span className="text-stone-400">बहुमोल डिजिटल नेटवर्क</span>
-          </p>
+      {/* 2. Bottom Copyright & Legal Strip */}
+      <div className="bg-black py-4 px-4 sm:px-6 text-[11px] text-stone-500 border-t border-stone-900">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div>
+            <p>© २०२६ बहुमोल समाज माध्यम समूह (Bahumol Samaj Media Group). सर्व हक्क सुरक्षित.</p>
+            <p className="text-[10px] text-stone-600 mt-0.5">
+              RNI नोंदणी क्र. MAHMAR/2024/88921 | डिजिटल न्यूज पब्लिशर
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            <button onClick={onNavigateAbout} className="hover:text-stone-300">
+              आमच्याबद्दल
+            </button>
+            <span>•</span>
+            <button onClick={onNavigateContact} className="hover:text-stone-300">
+              संपादकीय संपर्क
+            </button>
+            <span>•</span>
+            <button onClick={onNavigateAbout} className="hover:text-stone-300">
+              गोपनीयता धोरण (Privacy)
+            </button>
+            <span>•</span>
+            <button onClick={onNavigateAbout} className="hover:text-stone-300">
+              नियम व अटी (Terms)
+            </button>
+          </div>
         </div>
       </div>
     </footer>

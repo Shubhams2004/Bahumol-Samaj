@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { ALL_CATEGORIES, getCategoryBySlug } from '../data/categories';
+import { getCategoryBySlug } from '../data/categories';
 import { getArticlesByCategory, ARTICLES } from '../data/newsArticles';
 import { getRelativeTimeMarathi, toMarathiDigits } from '../utils/dateFormatter';
 import { ImageWithFallback } from '../components/common/ImageWithFallback';
-import { ChevronRight, Clock, MapPin, Filter } from 'lucide-react';
+import { ChevronRight, MapPin } from 'lucide-react';
 
 interface CategoryPageProps {
   slug: string;
@@ -19,13 +19,8 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({
   const category = getCategoryBySlug(slug);
   const [filterMode, setFilterMode] = useState<'latest' | 'popular'>('latest');
 
-  // If category not found, fallback to all articles
   const rawArticles = category ? getArticlesByCategory(category.slug) : [];
-  // If fewer than 2 in this category, complement with other articles for rich display
-  const displayArticles =
-    rawArticles.length > 0
-      ? rawArticles
-      : ARTICLES.slice(0, 4);
+  const displayArticles = rawArticles.length > 0 ? rawArticles : ARTICLES.slice(0, 4);
 
   const sortedArticles = [...displayArticles].sort((a, b) => {
     if (filterMode === 'popular') {

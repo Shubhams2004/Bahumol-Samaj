@@ -34,10 +34,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   const supportingStories = getSupportingArticles();
   const latestArticles = getLatestArticles(8);
   const trendingArticles = getTrendingArticles();
-  const mostReadArticles = ARTICLES.filter((a) => a.mostRead || a.viewsCount > 12000);
+  const mostReadArticles = ARTICLES.filter((a) => a.viewsCount > 15000);
   const editorialArticle = ARTICLES.find((a) => a.category === 'editorial');
 
-  // Categories to display on homepage
   const sectionsToDisplay: CategorySlug[] = [
     'maharashtra',
     'politics',
@@ -67,7 +66,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main News Columns (8 cols) */}
           <div className="lg:col-span-8">
-            {/* Latest Chronological Updates Feed */}
+            {/* Latest Updates Feed */}
             <LatestNewsFeed
               articles={latestArticles}
               onSelectArticle={onSelectArticle}
