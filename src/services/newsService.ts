@@ -3,6 +3,7 @@
  * Centralized content abstraction layer for Bahumol Samaj Weekly Newspaper.
  * Encapsulates all data access (Edition -> Sections -> Articles).
  * Supports fetching live timeline data from Cloudflare D1 /api/news with seamless local mock fallback.
+ * Includes full Editorial Dashboard API service methods.
  */
 
 import { Article, BreakingItem, Category, CategorySlug, WeeklyEdition } from '../types/news';
@@ -51,30 +52,48 @@ export interface TimelineStory {
   created_at: string;
 }
 
-export interface NewsRepository {
-  getCurrentEdition(): WeeklyEdition;
-  getEditorialTeam(): typeof EDITORIAL_TEAM;
-  getAllArticles(): Promise<Article[]>;
-  getArticleBySlug(slug: string): Promise<Article | undefined>;
-  getArticleById(id: string): Promise<Article | undefined>;
-  getArticlesByCategory(category: CategorySlug | string): Promise<Article[]>;
-  getLeadStory(): Promise<Article>;
-  getSecondaryLeadStories(): Promise<Article[]>;
-  getLatestStories(limit?: number): Promise<Article[]>;
-  getTrendingStories(limit?: number): Promise<Article[]>;
-  search(query: string, categoryFilter?: string): Promise<Article[]>;
-  getCategories(): Category[];
-  getCategoryBySlug(slug: string): Category | undefined;
-  getBreakingUpdates(): BreakingItem[];
-  fetchPublishedFromApi(category?: string, limit?: number): Promise<Article[]>;
-  fetchActiveSources(): Promise<BackendSource[]>;
-  fetchTimelineStories(params?: {
-    category?: string;
-    source_group?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<{ stories: TimelineStory[]; total: number; totalPages: number }>;
-  triggerManualIngestion(sourceId?: string): Promise<{ success: boolean; message: string; summary?: unknown }>;
+export interface EditorialStory extends TimelineStory {
+  content_hash: string;
+  updated_at: string;
+  original_title?: string | null;
+  original_description?: string | null;
+  tags?: string | null;
+  editorial_notes?: string | null;
+  is_edited?: number;
+}
+
+export interface EditorialStats {
+  all: number;
+  incoming: number;
+  review: number;
+  approved: number;
+  published: number;
+  rejected: number;
+  archived: number;
+}
+
+export interface EditorialUpdatePayload {
+  title?: string;
+  description?: string;
+  category?: string;
+  image_url?: string;
+  author?: string;
+  tags?: string;
+  editorial_notes?: string;
+  status?: string;
+}
+
+const DEFAULT_DEV_EDITORIAL_KEY = 'bahumol-editor-2026';
+
+function getStoredEditorialKey(): string {
+  if (typeof window === 'undefined') return DEFAULT_DEV_EDITORIAL_KEY;
+  return sessionStorage.getItem('bahumol_editorial_session_key') || DEFAULT_DEV_EDITORIAL_KEY;
+}
+
+export function setStoredEditorialKey(key: string): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('bahumol_editorial_session_key', key.trim());
+  }
 }
 
 // Convert D1 story row to frontend Article structure
@@ -109,7 +128,7 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
   };
 }
 
-export const newsService: NewsRepository = {
+export const newsService = {
   getCurrentEdition(): WeeklyEdition {
     return CURRENT_WEEKLY_EDITION;
   },
@@ -280,10 +299,12 @@ export const newsService: NewsRepository = {
         ? `/api/admin/refresh?source_id=${encodeURIComponent(sourceId)}`
         : '/api/admin/refresh';
 
+      const key = getStoredEditorialKey();
       const res = await fetch(url, {
         method: 'POST',
         headers: {
-          'X-Admin-Key': 'bahumol-news-admin-2026',
+          'X-Editorial-Key': key,
+          'X-Admin-Key': key,
           'Content-Type': 'application/json',
         },
       });
@@ -295,6 +316,290 @@ export const newsService: NewsRepository = {
         success: false,
         message: e instanceof Error ? e.message : 'संकलन अयशस्वी झाले (Ingestion request failed)',
       };
+    }
+  },
+
+  // =============================================================
+  // EDITORIAL DASHBOARD METHODS
+  // =============================================================
+
+  getEditorialKey(): string {
+    return getStoredEditorialKey();
+  },
+
+  setEditorialKey(key: string): void {
+    setStoredEditorialKey(key);
+  },
+
+  /**
+   * Fetch counts for all editorial tabs
+   */
+  async fetchEditorialStats(): Promise<EditorialStats> {
+    const fallbackStats: EditorialStats = {
+      all: 0,
+      incoming: 0,
+      review: 0,
+      approved: 0,
+      published: 0,
+      rejected: 0,
+      archived: 0,
+    };
+
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch('/api/editorial/stats', {
+        headers: { 'X-Editorial-Key': key },
+      });
+      if (res.ok) {
+        const json = await res.json() as { success: boolean; stats: EditorialStats };
+        if (json.success && json.stats) {
+          return json.stats;
+        }
+      }
+    } catch (e) {
+      console.warn('[newsService] fetchEditorialStats failed:', e);
+    }
+
+    return fallbackStats;
+  },
+
+  /**
+   * Fetch incoming stories (Section 1)
+   */
+  async fetchEditorialIncoming(params: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    source_group?: string;
+    search?: string;
+    sort?: 'newest' | 'oldest';
+  } = {}): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.set('page', String(params.page));
+      if (params.limit) queryParams.set('limit', String(params.limit || 25));
+      if (params.category && params.category !== 'all') queryParams.set('category', params.category);
+      if (params.source_group && params.source_group !== 'all') queryParams.set('source_group', params.source_group);
+      if (params.search) queryParams.set('search', params.search);
+      if (params.sort) queryParams.set('sort', params.sort);
+
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/incoming?${queryParams.toString()}`, {
+        headers: { 'X-Editorial-Key': key },
+      });
+
+      if (res.ok) {
+        const json = await res.json() as {
+          success: boolean;
+          total: number;
+          totalPages: number;
+          data: EditorialStory[];
+        };
+        if (json.success && Array.isArray(json.data)) {
+          return {
+            stories: json.data,
+            total: json.total || json.data.length,
+            totalPages: json.totalPages || 1,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[newsService] fetchEditorialIncoming failed:', e);
+    }
+
+    return { stories: [], total: 0, totalPages: 1 };
+  },
+
+  /**
+   * Generic stories query by status
+   */
+  async fetchEditorialStories(params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    category?: string;
+    source_group?: string;
+    search?: string;
+    sort?: 'newest' | 'oldest';
+  } = {}): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.status) queryParams.set('status', params.status);
+      if (params.page) queryParams.set('page', String(params.page));
+      if (params.limit) queryParams.set('limit', String(params.limit || 25));
+      if (params.category && params.category !== 'all') queryParams.set('category', params.category);
+      if (params.source_group && params.source_group !== 'all') queryParams.set('source_group', params.source_group);
+      if (params.search) queryParams.set('search', params.search);
+      if (params.sort) queryParams.set('sort', params.sort);
+
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/stories?${queryParams.toString()}`, {
+        headers: { 'X-Editorial-Key': key },
+      });
+
+      if (res.ok) {
+        const json = await res.json() as {
+          success: boolean;
+          total: number;
+          totalPages: number;
+          data: EditorialStory[];
+        };
+        if (json.success && Array.isArray(json.data)) {
+          return {
+            stories: json.data,
+            total: json.total || json.data.length,
+            totalPages: json.totalPages || 1,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[newsService] fetchEditorialStories failed:', e);
+    }
+
+    return { stories: [], total: 0, totalPages: 1 };
+  },
+
+  /**
+   * Fetch a single story for review
+   */
+  async fetchEditorialStoryById(id: string): Promise<EditorialStory | null> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}`, {
+        headers: { 'X-Editorial-Key': key },
+      });
+      if (res.ok) {
+        const json = await res.json() as { success: boolean; data: EditorialStory };
+        if (json.success && json.data) {
+          return json.data;
+        }
+      }
+    } catch (e) {
+      console.warn('[newsService] fetchEditorialStoryById failed:', e);
+    }
+    return null;
+  },
+
+  /**
+   * Save editorial updates (Section 3: EDIT)
+   */
+  async updateEditorialStory(
+    id: string,
+    payload: EditorialUpdatePayload
+  ): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: {
+          'X-Editorial-Key': key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      if (res.ok && json.success) {
+        return { success: true, message: json.message || 'बदल जतन झाले', data: json.data };
+      }
+      return { success: false, message: json.error || 'बदल जतन करण्यात अयशस्वी' };
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'सर्व्हरशी संपर्क होऊ शकला नाही',
+      };
+    }
+  },
+
+  /**
+   * Move story to 'review' status
+   */
+  async reviewStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/review`, {
+        method: 'POST',
+        headers: { 'X-Editorial-Key': key },
+      });
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
+    }
+  },
+
+  /**
+   * Approve a story for publication (incoming/review -> approved)
+   */
+  async approveStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        headers: { 'X-Editorial-Key': key },
+      });
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
+    }
+  },
+
+  /**
+   * Reject a story with optional editorial notes
+   */
+  async rejectStory(
+    id: string,
+    reason?: string
+  ): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/reject`, {
+        method: 'POST',
+        headers: {
+          'X-Editorial-Key': key,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason }),
+      });
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
+    }
+  },
+
+  /**
+   * Publish an approved story to public timeline
+   */
+  async publishStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/publish`, {
+        method: 'POST',
+        headers: { 'X-Editorial-Key': key },
+      });
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
+    }
+  },
+
+  /**
+   * Archive a story (published/rejected -> archived)
+   */
+  async archiveStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
+    try {
+      const key = getStoredEditorialKey();
+      const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/archive`, {
+        method: 'POST',
+        headers: { 'X-Editorial-Key': key },
+      });
+      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
     }
   },
 };

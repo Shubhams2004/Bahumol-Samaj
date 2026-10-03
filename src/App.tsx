@@ -15,6 +15,7 @@ import { ContactPage } from './pages/ContactPage';
 import { EpaperPage } from './pages/EpaperPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { NewsTimelinePage } from './pages/NewsTimelinePage';
+import { EditorialDashboardPage } from './pages/EditorialDashboardPage';
 
 export default function App() {
   const { route } = useRouter();
@@ -61,6 +62,10 @@ export default function App() {
 
   const handleNavigateTimeline = () => {
     navigateTo('#/timeline');
+  };
+
+  const handleNavigateEditorial = () => {
+    navigateTo('#/editorial');
   };
 
   const handleViewAllResults = (query: string) => {
@@ -158,6 +163,14 @@ export default function App() {
           />
         );
 
+      case 'editorial':
+        return (
+          <EditorialDashboardPage
+            onNavigateHome={handleNavigateHome}
+            onNavigateTimeline={handleNavigateTimeline}
+          />
+        );
+
       case 'home':
       default:
         return (
@@ -187,6 +200,7 @@ export default function App() {
         onNavigateHome={handleNavigateHome}
         onNavigateBookmarks={handleNavigateBookmarks}
         onNavigateTimeline={handleNavigateTimeline}
+        onNavigateEditorial={handleNavigateEditorial}
         onNavigateEpaper={handleNavigateEpaper}
         onNavigateAbout={handleNavigateAbout}
         onNavigateContact={handleNavigateContact}

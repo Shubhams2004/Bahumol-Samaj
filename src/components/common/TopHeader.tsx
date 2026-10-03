@@ -26,6 +26,7 @@ interface TopHeaderProps {
   onNavigateHome: () => void;
   onNavigateBookmarks: () => void;
   onNavigateTimeline?: () => void;
+  onNavigateEditorial?: () => void;
   onNavigateEpaper: () => void;
   onNavigateAbout: () => void;
   onNavigateContact: () => void;
@@ -43,6 +44,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onNavigateHome,
   onNavigateBookmarks,
   onNavigateTimeline,
+  onNavigateEditorial,
   onNavigateEpaper,
   onNavigateAbout,
   onNavigateContact,
@@ -82,6 +84,17 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <span className="hidden lg:inline text-stone-300 font-medium">
               मुख्य संपादक: <strong className="text-white">{CURRENT_WEEKLY_EDITION.editorInChief}</strong>
             </span>
+
+            {onNavigateEditorial && (
+              <button
+                onClick={onNavigateEditorial}
+                className="hidden sm:flex items-center gap-1 text-[11px] font-semibold text-amber-300 hover:text-white bg-stone-800 hover:bg-stone-700 px-2 py-0.5 rounded cursor-pointer transition-colors border border-stone-700"
+                title="संपादकीय नियंत्रण कक्ष (Internal Editorial Desk)"
+              >
+                <PenTool className="w-3 h-3 text-red-400" />
+                <span>संपादकीय कक्ष (CMS)</span>
+              </button>
+            )}
 
             {/* Dark / Light Mode Switch */}
             <button
@@ -311,6 +324,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               >
                 <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
                 लाइव्ह टाइमलाइन
+              </button>
+            )}
+            {onNavigateEditorial && (
+              <button
+                onClick={() => {
+                  onNavigateEditorial();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-2.5 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-left rounded font-bold text-sm text-amber-800 dark:text-amber-300 cursor-pointer flex items-center gap-1.5"
+              >
+                <PenTool className="w-3.5 h-3.5 text-red-600" />
+                संपादकीय नियंत्रण कक्ष
               </button>
             )}
             {ALL_CATEGORIES.map((cat) => (

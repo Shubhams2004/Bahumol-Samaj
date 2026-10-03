@@ -54,6 +54,31 @@ export interface StoryRow {
   updated_at: string;
   source_name?: string;
   source_group?: string;
+  original_title?: string | null;
+  original_description?: string | null;
+  tags?: string | null;
+  editorial_notes?: string | null;
+  is_edited?: number;
+}
+
+export interface EditorialUpdatePayload {
+  title?: string;
+  description?: string;
+  category?: string;
+  image_url?: string;
+  author?: string;
+  tags?: string;
+  editorial_notes?: string;
+}
+
+export interface EditorialCounts {
+  all: number;
+  incoming: number;
+  review: number;
+  approved: number;
+  published: number;
+  rejected: number;
+  archived: number;
 }
 
 export interface ParsedFeedItem {
