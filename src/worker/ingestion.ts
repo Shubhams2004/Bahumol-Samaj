@@ -30,7 +30,8 @@ async function fetchSourceWithTimeout(url: string, timeoutMs: number = 8000): Pr
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Bahumol-Samaj-NewsBot/1.0 (+https://bahumolsamaj.com; editor@bahumolsamaj.com)',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Bahumol-Samaj-Bot/1.0',
         Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
       },
     });
@@ -152,15 +153,29 @@ export async function ingestFromSource(
 }
 
 /**
- * Run complete ingestion cycle across all active sources
+ * Run complete ingestion cycle across active sources (or single target source)
  */
-export async function runIngestionPipeline(env: Env): Promise<IngestionSummary> {
+export async function runIngestionPipeline(
+  env: Env,
+  targetSourceId?: string
+): Promise<IngestionSummary> {
   const timestamp = new Date().toISOString();
 
   // Fetch active news sources from D1
-  const sourcesResult = await env.DB.prepare(
-    'SELECT * FROM news_sources WHERE active = 1 ORDER BY created_at ASC'
-  ).all<NewsSourceRow>();
+  let query = 'SELECT * FROM news_sources WHERE active = 1';
+  const params: string[] = [];
+
+  if (targetSourceId) {
+    query += ' AND id = ?';
+    params.push(targetSourceId);
+  }
+
+  query += ' ORDER BY created_at ASC';
+
+  const stmt = env.DB.prepare(query);
+  const sourcesResult = params.length > 0
+    ? await stmt.bind(params[0]).all<NewsSourceRow>()
+    : await stmt.all<NewsSourceRow>();
 
   const sources = sourcesResult.results || [];
 

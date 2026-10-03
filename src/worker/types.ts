@@ -31,6 +31,7 @@ export interface NewsSourceRow {
   language: string;
   default_category: string;
   active: number;
+  source_group: 'Indian News' | 'Government Sources' | 'International News' | string;
   last_fetched_at: string | null;
   created_at: string;
 }
@@ -51,6 +52,8 @@ export interface StoryRow {
   content_hash: string;
   created_at: string;
   updated_at: string;
+  source_name?: string;
+  source_group?: string;
 }
 
 export interface ParsedFeedItem {

@@ -16,6 +16,7 @@ import {
   PhoneCall,
   Calendar,
   PenTool,
+  Radio,
 } from 'lucide-react';
 
 interface TopHeaderProps {
@@ -24,6 +25,7 @@ interface TopHeaderProps {
   onOpenSearch: () => void;
   onNavigateHome: () => void;
   onNavigateBookmarks: () => void;
+  onNavigateTimeline?: () => void;
   onNavigateEpaper: () => void;
   onNavigateAbout: () => void;
   onNavigateContact: () => void;
@@ -40,6 +42,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenSearch,
   onNavigateHome,
   onNavigateBookmarks,
+  onNavigateTimeline,
   onNavigateEpaper,
   onNavigateAbout,
   onNavigateContact,
@@ -226,6 +229,17 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 मुख्यपृष्ठ
               </button>
             </li>
+            {onNavigateTimeline && (
+              <li>
+                <button
+                  onClick={onNavigateTimeline}
+                  className="px-2.5 py-2 text-sm font-bold font-sans cursor-pointer whitespace-nowrap transition-colors border-b-2 border-transparent text-red-700 dark:text-red-400 hover:text-red-800 flex items-center gap-1.5"
+                >
+                  <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+                  लाइव्ह टाइमलाइन
+                </button>
+              </li>
+            )}
             {ALL_CATEGORIES.map((cat) => {
               const isActive = currentCategorySlug === cat.slug;
               return (
@@ -287,6 +301,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             >
               मुख्यपृष्ठ
             </button>
+            {onNavigateTimeline && (
+              <button
+                onClick={() => {
+                  onNavigateTimeline();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-2.5 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/60 text-left rounded font-bold text-sm text-red-700 dark:text-red-400 cursor-pointer flex items-center gap-1.5"
+              >
+                <Radio className="w-3.5 h-3.5 text-red-600 animate-pulse" />
+                लाइव्ह टाइमलाइन
+              </button>
+            )}
             {ALL_CATEGORIES.map((cat) => (
               <button
                 key={cat.slug}

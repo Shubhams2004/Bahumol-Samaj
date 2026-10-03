@@ -14,6 +14,7 @@ import { AboutPage } from './pages/AboutPage';
 import { ContactPage } from './pages/ContactPage';
 import { EpaperPage } from './pages/EpaperPage';
 import { BookmarksPage } from './pages/BookmarksPage';
+import { NewsTimelinePage } from './pages/NewsTimelinePage';
 
 export default function App() {
   const { route } = useRouter();
@@ -56,6 +57,10 @@ export default function App() {
 
   const handleNavigateBookmarks = () => {
     navigateTo('#/bookmarks');
+  };
+
+  const handleNavigateTimeline = () => {
+    navigateTo('#/timeline');
   };
 
   const handleViewAllResults = (query: string) => {
@@ -145,6 +150,14 @@ export default function App() {
           />
         );
 
+      case 'timeline':
+        return (
+          <NewsTimelinePage
+            onNavigateHome={handleNavigateHome}
+            onSelectArticle={handleSelectArticle}
+          />
+        );
+
       case 'home':
       default:
         return (
@@ -173,6 +186,7 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         onNavigateHome={handleNavigateHome}
         onNavigateBookmarks={handleNavigateBookmarks}
+        onNavigateTimeline={handleNavigateTimeline}
         onNavigateEpaper={handleNavigateEpaper}
         onNavigateAbout={handleNavigateAbout}
         onNavigateContact={handleNavigateContact}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export interface RouteState {
-  page: 'home' | 'category' | 'article' | 'search' | 'about' | 'contact' | 'epaper' | 'bookmarks';
+  page: 'home' | 'category' | 'article' | 'search' | 'about' | 'contact' | 'epaper' | 'bookmarks' | 'timeline';
   params: {
     id?: string;
     slug?: string;
@@ -69,6 +69,10 @@ export const parseHash = (hashString?: string): RouteState => {
 
   if (parts[0] === 'bookmarks') {
     return { page: 'bookmarks', params: {} };
+  }
+
+  if (parts[0] === 'timeline') {
+    return { page: 'timeline', params: {} };
   }
 
   return { page: 'home', params: {} };

@@ -1,7 +1,8 @@
 /**
  * @file api.ts
  * Cloudflare Worker REST API router for Bahumol Samaj Weekly Newspaper.
- * Provides public read-only endpoints (published stories only) and protected ingestion/admin endpoints.
+ * Provides public read-only endpoints (published stories only with joined source info)
+ * and protected ingestion/editorial admin endpoints.
  */
 
 import { Env, StoryRow, StoryStatus } from './types';
@@ -59,11 +60,23 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
   // -------------------------------------------------------------
   // Public Endpoint: GET /api/sources
+  // Returns active sources grouped by source_group
   // -------------------------------------------------------------
   if (method === 'GET' && path === '/api/sources') {
-    const rows = await env.DB.prepare(
-      'SELECT id, name, source_url, source_type, language, default_category, active, last_fetched_at FROM news_sources WHERE active = 1 ORDER BY name ASC'
-    ).all();
+    const groupFilter = url.searchParams.get('group');
+    let sql =
+      'SELECT id, name, source_url, source_type, language, default_category, active, source_group, last_fetched_at FROM news_sources WHERE active = 1';
+    const params: string[] = [];
+
+    if (groupFilter) {
+      sql += ' AND source_group = ?';
+      params.push(groupFilter);
+    }
+
+    sql += ' ORDER BY source_group ASC, name ASC';
+
+    const stmt = env.DB.prepare(sql);
+    const rows = params.length > 0 ? await stmt.bind(params[0]).all() : await stmt.all();
 
     return jsonResponse({
       success: true,
@@ -73,29 +86,49 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
   // -------------------------------------------------------------
   // Public Endpoint: GET /api/news
-  // Returns published stories only with pagination and optional category
+  // Returns published stories only with pagination, optional category, and source_group
   // -------------------------------------------------------------
   if (method === 'GET' && path === '/api/news') {
     const categoryParam = url.searchParams.get('category');
+    const sourceGroupParam = url.searchParams.get('source_group') || url.searchParams.get('group');
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '10', 10) || 10));
     const offset = (page - 1) * limit;
 
-    let countQuery = "SELECT COUNT(*) as count FROM stories WHERE status = 'published'";
-    let selectQuery = "SELECT * FROM stories WHERE status = 'published'";
+    let countQuery = `
+      SELECT COUNT(*) as count
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE stories.status = 'published'
+    `;
+    let selectQuery = `
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE stories.status = 'published'
+    `;
     const queryParams: (string | number)[] = [];
 
     if (categoryParam && categoryParam.trim()) {
-      countQuery += ' AND category = ?';
-      selectQuery += ' AND category = ?';
+      countQuery += ' AND stories.category = ?';
+      selectQuery += ' AND stories.category = ?';
       queryParams.push(categoryParam.trim());
     }
 
-    selectQuery += ' ORDER BY published_at DESC LIMIT ? OFFSET ?';
+    if (sourceGroupParam && sourceGroupParam.trim()) {
+      countQuery += ' AND news_sources.source_group = ?';
+      selectQuery += ' AND news_sources.source_group = ?';
+      queryParams.push(sourceGroupParam.trim());
+    }
+
+    selectQuery += ' ORDER BY stories.published_at DESC LIMIT ? OFFSET ?';
 
     const countStmt = env.DB.prepare(countQuery);
     const totalRow = (queryParams.length > 0
-      ? await countStmt.bind(queryParams[0]).first<{ count: number }>()
+      ? await countStmt.bind(...queryParams).first<{ count: number }>()
       : await countStmt.first<{ count: number }>()) || { count: 0 };
 
     const total = totalRow.count;
@@ -137,9 +170,17 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     const total = countResult?.count || 0;
     const totalPages = Math.ceil(total / limit) || 1;
 
-    const rows = await env.DB.prepare(
-      "SELECT * FROM stories WHERE status = 'published' AND category = ? ORDER BY published_at DESC LIMIT ? OFFSET ?"
-    )
+    const rows = await env.DB.prepare(`
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE stories.status = 'published' AND stories.category = ?
+      ORDER BY stories.published_at DESC
+      LIMIT ? OFFSET ?
+    `)
       .bind(rawCategory, limit, offset)
       .all<StoryRow>();
 
@@ -163,9 +204,16 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       return jsonResponse({ error: 'बातमी ओळख क्रमांक (ID) आवश्यक आहे' }, 400);
     }
 
-    const story = await env.DB.prepare(
-      "SELECT * FROM stories WHERE (id = ? OR source_guid = ?) AND status = 'published' LIMIT 1"
-    )
+    const story = await env.DB.prepare(`
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE (stories.id = ? OR stories.source_guid = ?) AND stories.status = 'published'
+      LIMIT 1
+    `)
       .bind(storyId, storyId)
       .first<StoryRow>();
 
@@ -184,18 +232,67 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
   // -------------------------------------------------------------
   // Protected Endpoint: POST /api/admin/refresh (or /api/ingest)
-  // Triggers manual RSS ingestion cycle across all active sources
+  // Supports optional ?source_id=... to test single feeds
   // -------------------------------------------------------------
   if (method === 'POST' && (path === '/api/admin/refresh' || path === '/api/ingest')) {
     if (!isAuthorizedAdmin(request, env)) {
       return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized: Invalid or missing admin key)' }, 401);
     }
 
-    const summary = await runIngestionPipeline(env);
+    let targetSourceId = url.searchParams.get('source_id') || undefined;
+    if (!targetSourceId) {
+      try {
+        const body = (await request.json()) as { source_id?: string; sourceId?: string };
+        targetSourceId = body.source_id || body.sourceId;
+      } catch {}
+    }
+
+    const summary = await runIngestionPipeline(env, targetSourceId);
     return jsonResponse({
       success: true,
       message: 'साप्ताहिक वृत्त संकलन यशस्वीरीत्या पूर्ण झाले (Ingestion completed)',
+      targetSourceId: targetSourceId || 'all_active',
       summary,
+    });
+  }
+
+  // -------------------------------------------------------------
+  // Protected Endpoint: POST /api/admin/publish-batch
+  // Publishes incoming stories for editorial verification
+  // -------------------------------------------------------------
+  if (method === 'POST' && path === '/api/admin/publish-batch') {
+    if (!isAuthorizedAdmin(request, env)) {
+      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized)' }, 401);
+    }
+
+    let body: { source_id?: string; limit?: number } = {};
+    try {
+      body = await request.json();
+    } catch {}
+
+    const limit = Math.min(50, body.limit || 10);
+    let updateSql = `
+      UPDATE stories
+      SET status = 'published', updated_at = datetime('now')
+      WHERE id IN (
+        SELECT id FROM stories WHERE status = 'incoming'
+    `;
+    const params: (string | number)[] = [];
+
+    if (body.source_id) {
+      updateSql += ' AND source_id = ?';
+      params.push(body.source_id);
+    }
+
+    updateSql += ' ORDER BY published_at DESC LIMIT ?)';
+    params.push(limit);
+
+    const updateRes = await env.DB.prepare(updateSql).bind(...params).run();
+
+    return jsonResponse({
+      success: true,
+      publishedCount: updateRes.meta.changes,
+      message: `${updateRes.meta.changes} बातम्या प्रकाशित केल्या (Published stories)`,
     });
   }
 
@@ -215,7 +312,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
     const title = body.title || 'महाराष्ट्र विधिमंडळ: शेतकरी सिंचन व रोजगार योजनेसाठी विशेष तरतूद';
     const sourceUrl = body.source_url || 'https://pib.gov.in/sample-story-1';
-    const sourceId = body.source_id || 'src_pib_mr';
+    const sourceId = body.source_id || 'src_gov_pib_mr';
     const category = body.category || 'महाराष्ट्र';
     const status: StoryStatus = body.status || 'published';
     const publishedAt = body.published_at || new Date().toISOString();
@@ -262,7 +359,15 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       )
       .run();
 
-    const createdStory = await env.DB.prepare('SELECT * FROM stories WHERE id = ?')
+    const createdStory = await env.DB.prepare(`
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE stories.id = ?
+    `)
       .bind(storyId)
       .first<StoryRow>();
 
@@ -317,7 +422,15 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
     }
 
-    const updated = await env.DB.prepare('SELECT * FROM stories WHERE id = ?')
+    const updated = await env.DB.prepare(`
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+      WHERE stories.id = ?
+    `)
       .bind(storyId)
       .first<StoryRow>();
 
@@ -341,15 +454,22 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20));
     const offset = (page - 1) * limit;
 
-    let query = 'SELECT * FROM stories';
+    let query = `
+      SELECT
+        stories.*,
+        news_sources.name as source_name,
+        news_sources.source_group as source_group
+      FROM stories
+      LEFT JOIN news_sources ON stories.source_id = news_sources.id
+    `;
     const params: (string | number)[] = [];
 
     if (statusParam) {
-      query += ' WHERE status = ?';
+      query += ' WHERE stories.status = ?';
       params.push(statusParam);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY stories.created_at DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
     const rows = await env.DB.prepare(query).bind(...params).all<StoryRow>();

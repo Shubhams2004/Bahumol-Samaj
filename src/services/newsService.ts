@@ -2,7 +2,7 @@
  * @file newsService.ts
  * Centralized content abstraction layer for Bahumol Samaj Weekly Newspaper.
  * Encapsulates all data access (Edition -> Sections -> Articles).
- * Supports fetching from the Cloudflare D1 /api/news backend with instant fallback to local dataset.
+ * Supports fetching live timeline data from Cloudflare D1 /api/news with seamless local mock fallback.
  */
 
 import { Article, BreakingItem, Category, CategorySlug, WeeklyEdition } from '../types/news';
@@ -29,7 +29,26 @@ export interface BackendSource {
   language: string;
   default_category: string;
   active: number;
+  source_group: 'Indian News' | 'Government Sources' | 'International News' | string;
   last_fetched_at: string | null;
+}
+
+export interface TimelineStory {
+  id: string;
+  source_id: string;
+  source_name?: string;
+  source_group?: string;
+  source_url: string;
+  source_guid: string | null;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  author: string | null;
+  published_at: string;
+  category: string;
+  language: string;
+  status: string;
+  created_at: string;
 }
 
 export interface NewsRepository {
@@ -49,6 +68,13 @@ export interface NewsRepository {
   getBreakingUpdates(): BreakingItem[];
   fetchPublishedFromApi(category?: string, limit?: number): Promise<Article[]>;
   fetchActiveSources(): Promise<BackendSource[]>;
+  fetchTimelineStories(params?: {
+    category?: string;
+    source_group?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ stories: TimelineStory[]; total: number; totalPages: number }>;
+  triggerManualIngestion(sourceId?: string): Promise<{ success: boolean; message: string; summary?: unknown }>;
 }
 
 // Convert D1 story row to frontend Article structure
@@ -65,7 +91,9 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
     title,
     excerpt: description,
     category,
-    image: (row.image_url as string) || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
+    image:
+      (row.image_url as string) ||
+      'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
     location: 'महाराष्ट्र',
     publishedAt,
     readTimeMinutes: 3,
@@ -73,7 +101,7 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
     sharesCount: 150,
     tags: [category, 'साप्ताहिक'],
     author: {
-      name: (row.author as string) || 'विशेष वार्ताहर',
+      name: (row.author as string) || (row.source_name as string) || 'विशेष वार्ताहर',
       role: 'वार्ताहर',
       location: 'महाराष्ट्र',
     },
@@ -95,11 +123,9 @@ export const newsService: NewsRepository = {
   },
 
   async getArticleBySlug(slug: string): Promise<Article | undefined> {
-    // 1. Try local mock dataset first for instant response
     const local = fetchArticleBySlug(slug);
     if (local) return local;
 
-    // 2. Try fetching from D1 API
     try {
       const res = await fetch(`/api/news/${encodeURIComponent(slug)}`);
       if (res.ok) {
@@ -184,7 +210,6 @@ export const newsService: NewsRepository = {
       }
     } catch {}
 
-    // Fallback to local verified mock articles
     return category ? fetchArticlesByCategory(category) : fetchLatestArticles(limit);
   },
 
@@ -203,5 +228,73 @@ export const newsService: NewsRepository = {
     } catch {}
 
     return [];
+  },
+
+  /**
+   * Fetch timeline stories with pagination, category filter and source group filter
+   */
+  async fetchTimelineStories(params: {
+    category?: string;
+    source_group?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{ stories: TimelineStory[]; total: number; totalPages: number }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.category) queryParams.set('category', params.category);
+      if (params.source_group) queryParams.set('source_group', params.source_group);
+      if (params.page) queryParams.set('page', String(params.page));
+      if (params.limit) queryParams.set('limit', String(params.limit || 15));
+
+      const res = await fetch(`/api/news?${queryParams.toString()}`);
+      if (res.ok) {
+        const json = (await res.json()) as {
+          success: boolean;
+          total: number;
+          totalPages: number;
+          data: TimelineStory[];
+        };
+        if (json.success && Array.isArray(json.data)) {
+          return {
+            stories: json.data,
+            total: json.total || json.data.length,
+            totalPages: json.totalPages || 1,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('[newsService] Failed to fetch timeline stories from /api/news:', e);
+    }
+
+    return { stories: [], total: 0, totalPages: 1 };
+  },
+
+  /**
+   * Trigger manual ingestion cycle for all sources or single source
+   */
+  async triggerManualIngestion(
+    sourceId?: string
+  ): Promise<{ success: boolean; message: string; summary?: unknown }> {
+    try {
+      const url = sourceId
+        ? `/api/admin/refresh?source_id=${encodeURIComponent(sourceId)}`
+        : '/api/admin/refresh';
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-Admin-Key': 'bahumol-news-admin-2026',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = await res.json() as { success: boolean; message: string; summary?: unknown };
+      return json;
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'संकलन अयशस्वी झाले (Ingestion request failed)',
+      };
+    }
   },
 };
