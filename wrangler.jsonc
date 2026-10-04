@@ -15,7 +15,7 @@
     {
       "binding": "DB",
       "database_name": "bahumol-samaj-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "2f583df6-fa6d-42f7-a1d8-f128e56aa73f",
       "migrations_dir": "migrations"
     }
   ],

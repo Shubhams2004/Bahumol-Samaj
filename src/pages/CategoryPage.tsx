@@ -19,8 +19,27 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({
   const category = getCategoryBySlug(slug);
   const [filterMode, setFilterMode] = useState<'latest' | 'popular'>('latest');
 
-  const rawArticles = category ? getArticlesByCategory(category.slug) : [];
-  const displayArticles = rawArticles.length > 0 ? rawArticles : ARTICLES.slice(0, 4);
+  if (!category) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center font-sans">
+        <h1 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100 mb-2">
+          विभाग आढळला नाही
+        </h1>
+        <p className="text-sm text-stone-500 dark:text-stone-400 mb-6">
+          आपण शोधत असलेला विभाग उपलब्ध नाही किंवा चुकीचा पत्ता प्रविष्ट केला आहे.
+        </p>
+        <button
+          onClick={onNavigateHome}
+          className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded cursor-pointer transition-colors"
+        >
+          मुख्यपृष्ठावर परत जा
+        </button>
+      </div>
+    );
+  }
+
+  const rawArticles = getArticlesByCategory(category.slug);
+  const displayArticles = rawArticles;
 
   const sortedArticles = [...displayArticles].sort((a, b) => {
     if (filterMode === 'popular') {

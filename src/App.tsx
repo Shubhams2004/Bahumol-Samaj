@@ -37,7 +37,13 @@ export default function App() {
   };
 
   const handleSelectCategory = (slug: string) => {
-    navigateTo(`#/category/${slug}`);
+    if (slug === 'editorial') {
+      navigateTo('#/editorial');
+    } else if (slug === 'editorial-desk' || slug === 'editorial_desk') {
+      navigateTo('#/editorial-desk');
+    } else {
+      navigateTo(`#/category/${slug}`);
+    }
   };
 
   const handleNavigateHome = () => {
@@ -86,6 +92,15 @@ export default function App() {
   const renderCurrentPage = () => {
     switch (route.page) {
       case 'category':
+        if (route.params.slug === 'editorial-desk' || route.params.slug === 'editorial_desk') {
+          return (
+            <EditorialDashboardPage
+              onNavigateHome={handleNavigateHome}
+              onNavigateTimeline={handleNavigateTimeline}
+              initialStoryId={route.params.storyId}
+            />
+          );
+        }
         return (
           <CategoryPage
             slug={route.params.slug || 'maharashtra'}
