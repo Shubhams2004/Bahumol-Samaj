@@ -83,7 +83,17 @@ async function prepareCloudflare() {
     // Creation not supported in current environment
   }
 
-  // 5. If still using placeholder, log clear instructions for the user
+  // 5. If user enabled fallback deploy without D1
+  if (process.env.ALLOW_INITIAL_DEPLOY === 'true' || process.env.SKIP_D1_FALLBACK === 'true') {
+    console.log('[cloudflare-prep] ALLOW_INITIAL_DEPLOY enabled: omitting placeholder d1_databases binding to allow deployment...');
+    let content = fs.readFileSync(WRANGLER_CONFIG_PATH, 'utf8');
+    content = content.replace(/\s*"d1_databases":\s*\[\s*\{[\s\S]*?\}\s*\],?/, '');
+    fs.writeFileSync(WRANGLER_CONFIG_PATH, content, 'utf8');
+    console.log('[cloudflare-prep] Deployment will proceed with frontend and assets.');
+    return;
+  }
+
+  // 6. If still using placeholder, log clear instructions for the user
   console.log('[cloudflare-prep] Note: wrangler.jsonc is currently using the initial placeholder database_id.');
   console.log('[cloudflare-prep] If you have created the D1 database, set the D1_DATABASE_ID environment variable');
   console.log('[cloudflare-prep] in your Cloudflare dashboard, or update database_id directly in wrangler.jsonc.');

@@ -68,6 +68,10 @@ export default function App() {
     navigateTo('#/editorial');
   };
 
+  const handleNavigateEditorialDesk = () => {
+    navigateTo('#/editorial-desk');
+  };
+
   const handleViewAllResults = (query: string) => {
     navigateTo(`#/search?q=${encodeURIComponent(query)}`);
   };
@@ -75,6 +79,8 @@ export default function App() {
   let currentCategorySlug: string | undefined = undefined;
   if (route.page === 'category' && route.params.slug) {
     currentCategorySlug = route.params.slug;
+  } else if (route.page === 'editorial') {
+    currentCategorySlug = 'editorial';
   }
 
   const renderCurrentPage = () => {
@@ -165,9 +171,19 @@ export default function App() {
 
       case 'editorial':
         return (
+          <CategoryPage
+            slug="editorial"
+            onSelectArticle={handleSelectArticle}
+            onNavigateHome={handleNavigateHome}
+          />
+        );
+
+      case 'editorial-desk':
+        return (
           <EditorialDashboardPage
             onNavigateHome={handleNavigateHome}
             onNavigateTimeline={handleNavigateTimeline}
+            initialStoryId={route.params.storyId}
           />
         );
 
@@ -201,6 +217,7 @@ export default function App() {
         onNavigateBookmarks={handleNavigateBookmarks}
         onNavigateTimeline={handleNavigateTimeline}
         onNavigateEditorial={handleNavigateEditorial}
+        onNavigateEditorialDesk={handleNavigateEditorialDesk}
         onNavigateEpaper={handleNavigateEpaper}
         onNavigateAbout={handleNavigateAbout}
         onNavigateContact={handleNavigateContact}

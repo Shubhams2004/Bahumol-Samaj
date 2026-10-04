@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
 
 export interface RouteState {
-  page: 'home' | 'category' | 'article' | 'search' | 'about' | 'contact' | 'epaper' | 'bookmarks' | 'timeline' | 'editorial';
+  page:
+    | 'home'
+    | 'category'
+    | 'article'
+    | 'search'
+    | 'about'
+    | 'contact'
+    | 'epaper'
+    | 'bookmarks'
+    | 'timeline'
+    | 'editorial'
+    | 'editorial-desk';
   params: {
     id?: string;
     slug?: string;
     query?: string;
+    storyId?: string;
   };
 }
 
@@ -73,6 +85,13 @@ export const parseHash = (hashString?: string): RouteState => {
 
   if (parts[0] === 'timeline') {
     return { page: 'timeline', params: {} };
+  }
+
+  if (parts[0] === 'editorial-desk') {
+    return {
+      page: 'editorial-desk',
+      params: { storyId: parts[1] },
+    };
   }
 
   if (parts[0] === 'editorial') {

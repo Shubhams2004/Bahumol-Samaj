@@ -41,10 +41,12 @@ import {
   AlertTriangle,
   KeyRound,
 } from 'lucide-react';
+import { StoryWorkspace } from '../components/editorial/StoryWorkspace';
 
 interface EditorialDashboardPageProps {
   onNavigateHome: () => void;
   onNavigateTimeline?: () => void;
+  initialStoryId?: string;
 }
 
 type TabType = 'incoming' | 'review' | 'approved' | 'published' | 'rejected' | 'archived' | 'all';
@@ -79,6 +81,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
   onNavigateHome,
   onNavigateTimeline,
+  initialStoryId,
 }) => {
   // Authentication State
   const [authState, setAuthState] = useState<{
@@ -89,6 +92,9 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
     checking: true,
     authenticated: false,
   });
+
+  // Dedicated Story Workspace State
+  const [selectedStoryForWorkspace, setSelectedStoryForWorkspace] = useState<EditorialStory | null>(null);
 
   // Login Form State
   const [loginSecret, setLoginSecret] = useState<string>('');
@@ -203,6 +209,29 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
       loadStories(1);
     }
   }, [authState.authenticated, loadStats, loadStories]);
+
+  // Open initialStoryId if provided in route
+  useEffect(() => {
+    if (initialStoryId && authState.authenticated) {
+      newsService.fetchEditorialStoryById(initialStoryId).then((story) => {
+        if (story) {
+          setSelectedStoryForWorkspace(story);
+        }
+      });
+    }
+  }, [initialStoryId, authState.authenticated]);
+
+  const handleOpenWorkspace = (story: EditorialStory) => {
+    setSelectedStoryForWorkspace(story);
+    window.location.hash = `#/editorial-desk/${story.id}`;
+  };
+
+  const handleCloseWorkspace = () => {
+    setSelectedStoryForWorkspace(null);
+    window.location.hash = '#/editorial-desk';
+    loadStats();
+    loadStories(page);
+  };
 
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -508,6 +537,24 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
           </div>
         </div>
       </div>
+    );
+  }
+
+  // =============================================================
+  // RENDER STATE 2.5: DEDICATED STORY WORKSPACE
+  // =============================================================
+  if (selectedStoryForWorkspace) {
+    return (
+      <StoryWorkspace
+        story={selectedStoryForWorkspace}
+        onBack={handleCloseWorkspace}
+        onStoryUpdated={(updated) => {
+          setSelectedStoryForWorkspace(updated);
+          setStories((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+        }}
+        onStatsUpdated={loadStats}
+        showToast={showToast}
+      />
     );
   }
 
@@ -890,7 +937,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
 
                       {/* Headline */}
                       <h3
-                        onClick={() => handleOpenReview(story)}
+                        onClick={() => handleOpenWorkspace(story)}
                         className="font-serif text-base sm:text-lg font-bold text-stone-900 dark:text-stone-100 leading-snug hover:text-red-700 dark:hover:text-red-400 cursor-pointer mb-2"
                       >
                         {story.title}
@@ -898,7 +945,10 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
 
                       {/* Description / Excerpt */}
                       {story.description && (
-                        <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 line-clamp-2 leading-relaxed mb-3">
+                        <p
+                          onClick={() => handleOpenWorkspace(story)}
+                          className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 line-clamp-2 leading-relaxed mb-3 cursor-pointer hover:text-stone-900 dark:hover:text-stone-200"
+                        >
                           {story.description}
                         </p>
                       )}
@@ -907,17 +957,18 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                     {/* Action Buttons Row */}
                     <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        {/* Inspect / Review Button */}
+                        {/* Open Story Workspace Button */}
                         <button
-                          onClick={() => handleOpenReview(story)}
-                          className="px-2.5 py-1 text-xs font-semibold bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 rounded border border-stone-300 dark:border-stone-700 cursor-pointer"
+                          onClick={() => handleOpenWorkspace(story)}
+                          className="px-2.5 py-1 text-xs font-semibold bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 rounded border border-stone-300 dark:border-stone-700 cursor-pointer flex items-center gap-1"
                         >
-                          तपासा (Inspect)
+                          <PenTool className="w-3 h-3 text-red-600" />
+                          <span>कार्यकक्ष (Workspace)</span>
                         </button>
 
                         {/* Edit Button */}
                         <button
-                          onClick={() => handleOpenReview(story, true)}
+                          onClick={() => handleOpenWorkspace(story)}
                           className="px-2.5 py-1 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 rounded border border-amber-300 dark:border-amber-800 cursor-pointer flex items-center gap-1"
                         >
                           <Edit3 className="w-3 h-3" />
