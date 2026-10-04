@@ -1,10 +1,10 @@
 /**
  * @file api.ts
  * Cloudflare Worker REST API router for Bahumol Samaj Weekly Newspaper.
- * Provides:
- * 1. Public read-only endpoints (published stories only with joined source info)
- * 2. Protected editorial newsroom endpoints (/api/editorial/*)
- * 3. Protected RSS ingestion & administration endpoints (/api/admin/*)
+ * Production-Safe Architecture:
+ * 1. Public read-only endpoints (published stories only, public cache)
+ * 2. Authenticated Editorial Newsroom endpoints (/api/editorial/*) protected by server-side D1 sessions
+ * 3. Secret validation against Cloudflare secret ADMIN_API_KEY (no hardcoded fallbacks)
  */
 
 import { Env, StoryRow, StoryStatus, EditorialCounts, EditorialUpdatePayload } from './types';
@@ -13,44 +13,119 @@ import { runIngestionPipeline, computeContentHash } from './ingestion';
 /**
  * Helper to build JSON responses with security and CORS headers
  */
-export function jsonResponse(data: unknown, status: number = 200): Response {
+export function jsonResponse(
+  data: unknown,
+  status: number = 200,
+  extraHeaders: Record<string, string> = {}
+): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Key, X-Editorial-Key',
-      'Cache-Control': status === 200 ? 'public, max-age=30, s-maxage=60' : 'no-store',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Cache-Control': status === 200 && !extraHeaders['Set-Cookie'] ? 'public, max-age=30, s-maxage=60' : 'no-store',
+      ...extraHeaders,
     },
   });
 }
 
 /**
- * Validate admin authorization token
+ * Constant-time comparison between user-provided credential and server-configured secret
+ * Prevents timing attacks and guarantees no hardcoded fallback is used.
  */
-export function isAuthorizedAdmin(request: Request, env: Env): boolean {
-  const adminKey = env.ADMIN_API_KEY || 'bahumol-news-admin-2026';
-  const editorialKey = 'bahumol-editor-2026';
-  const authHeader = request.headers.get('Authorization') || '';
-  const xAdminKey = request.headers.get('X-Admin-Key') || '';
-  const xEditorialKey = request.headers.get('X-Editorial-Key') || '';
-
-  if (xAdminKey && (xAdminKey === adminKey || xAdminKey === editorialKey)) return true;
-  if (xEditorialKey && (xEditorialKey === adminKey || xEditorialKey === editorialKey)) return true;
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7).trim();
-    if (token === adminKey || token === editorialKey) return true;
+export async function verifyAdminSecret(
+  providedKey: string | undefined | null,
+  configuredSecret: string | undefined | null
+): Promise<boolean> {
+  if (!configuredSecret || typeof configuredSecret !== 'string' || !configuredSecret.trim()) {
+    // Secret is not configured in Cloudflare environment
+    return false;
+  }
+  if (!providedKey || typeof providedKey !== 'string' || !providedKey.trim()) {
+    return false;
   }
 
-  return false;
+  const encoder = new TextEncoder();
+  const aHash = await crypto.subtle.digest('SHA-256', encoder.encode(providedKey.trim()));
+  const bHash = await crypto.subtle.digest('SHA-256', encoder.encode(configuredSecret.trim()));
+
+  const aBytes = new Uint8Array(aHash);
+  const bBytes = new Uint8Array(bHash);
+
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
 }
 
 /**
- * Validate editorial authorization token
+ * Generate and store a secure server-side session in D1
  */
-export function isAuthorizedEditorial(request: Request, env: Env): boolean {
-  return isAuthorizedAdmin(request, env);
+export async function createEditorialSession(db: Env['DB']): Promise<string> {
+  const tokenBytes = new Uint8Array(24);
+  crypto.getRandomValues(tokenBytes);
+  const tokenHex = Array.from(tokenBytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const sessionId = `ses_${tokenHex}`;
+
+  // Session valid for 24 hours
+  await db
+    .prepare(
+      "INSERT INTO editorial_sessions (id, created_at, expires_at) VALUES (?, datetime('now'), datetime('now', '+24 hours'))"
+    )
+    .bind(sessionId)
+    .run();
+
+  return sessionId;
+}
+
+/**
+ * Destroy a session in D1 on logout
+ */
+export async function destroyEditorialSession(db: Env['DB'], sessionId: string): Promise<void> {
+  await db.prepare('DELETE FROM editorial_sessions WHERE id = ?').bind(sessionId).run();
+}
+
+/**
+ * Extract and validate session token from HttpOnly cookie or Authorization Bearer header
+ * Returns session ID if valid and unexpired in D1; null otherwise.
+ */
+export async function getAuthenticatedSession(request: Request, env: Env): Promise<string | null> {
+  let sessionId: string | null = null;
+
+  // 1. Check HttpOnly Cookie
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const cookieMatch = cookieHeader.match(/(?:^|;\s*)editorial_session=([^;]+)/);
+  if (cookieMatch) {
+    sessionId = decodeURIComponent(cookieMatch[1]);
+  }
+
+  // 2. Check Authorization Bearer header (supports session tokens e.g. Bearer ses_...)
+  if (!sessionId) {
+    const authHeader = request.headers.get('Authorization') || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token.startsWith('ses_')) {
+        sessionId = token;
+      }
+    }
+  }
+
+  if (!sessionId) {
+    return null;
+  }
+
+  // 3. Verify in D1 database that session exists and is unexpired
+  const row = await env.DB.prepare(
+    "SELECT id FROM editorial_sessions WHERE id = ? AND expires_at > datetime('now') LIMIT 1"
+  )
+    .bind(sessionId)
+    .first<{ id: string }>();
+
+  return row ? row.id : null;
 }
 
 /**
@@ -87,14 +162,16 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       status: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': 'true',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Key, X-Editorial-Key',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
     });
   }
 
   // =============================================================
   // PART 1: PUBLIC READ-ONLY ENDPOINTS (Strictly Published Stories)
+  // Public visitors never need credentials and cannot see unpublished stories.
   // =============================================================
 
   // -------------------------------------------------------------
@@ -271,16 +348,141 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
   }
 
   // =============================================================
-  // PART 2: PROTECTED EDITORIAL DASHBOARD ENDPOINTS (/api/editorial/*)
+  // PART 2: EDITORIAL AUTHENTICATION (/api/editorial/auth/*)
+  // =============================================================
+
+  // -------------------------------------------------------------
+  // POST /api/editorial/auth/login
+  // Validates secret against ADMIN_API_KEY, issues HttpOnly cookie
+  // -------------------------------------------------------------
+  if (method === 'POST' && path === '/api/editorial/auth/login') {
+    let key = '';
+    try {
+      const body = (await request.json()) as { key?: string; password?: string; adminKey?: string; secret?: string };
+      key = body?.key || body?.password || body?.adminKey || body?.secret || '';
+    } catch {
+      return jsonResponse({ error: 'अवैध विनंती डेटा (Invalid JSON)', code: 'INVALID_BODY' }, 400);
+    }
+
+    if (!key || typeof key !== 'string' || !key.trim()) {
+      return jsonResponse(
+        { error: 'संपादकीय सुरक्षा की आवश्यक आहे (Secret access key required)', code: 'MISSING_CREDENTIALS' },
+        400
+      );
+    }
+
+    // Check if Cloudflare secret is configured
+    if (!env.ADMIN_API_KEY || !env.ADMIN_API_KEY.trim()) {
+      return jsonResponse(
+        {
+          error:
+            'सर्व्हर सुरक्षा की सेट केलेली नाही. कृपया Cloudflare मध्ये ADMIN_API_KEY कॉन्फिगर करा (Server ADMIN_API_KEY secret not configured)',
+          code: 'SECRET_NOT_CONFIGURED',
+        },
+        503
+      );
+    }
+
+    const isValid = await verifyAdminSecret(key, env.ADMIN_API_KEY);
+    if (!isValid) {
+      return jsonResponse(
+        { error: 'अवैध संपादकीय सुरक्षा की (Invalid secret key)', code: 'INVALID_CREDENTIALS' },
+        401
+      );
+    }
+
+    // Create session in D1
+    const sessionId = await createEditorialSession(env.DB);
+    const isHttps = url.protocol === 'https:' || env.ENVIRONMENT === 'production';
+    const cookieHeader = `editorial_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400${
+      isHttps ? '; Secure' : ''
+    }`;
+
+    // Return session response (NEVER return permanent ADMIN_API_KEY to browser)
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'संपादकीय ओळख यशस्वीरीत्या पडताळली (Authentication successful)',
+        user: { role: 'editor', editorInChief: 'दिलीप सोनाळे' },
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Set-Cookie': cookieHeader,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true',
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
+  }
+
+  // -------------------------------------------------------------
+  // POST /api/editorial/auth/logout
+  // Invalidates session in D1 and clears cookie
+  // -------------------------------------------------------------
+  if (method === 'POST' && path === '/api/editorial/auth/logout') {
+    const sessionId = await getAuthenticatedSession(request, env);
+    if (sessionId) {
+      await destroyEditorialSession(env.DB, sessionId);
+    }
+
+    const isHttps = url.protocol === 'https:' || env.ENVIRONMENT === 'production';
+    const clearCookieHeader = `editorial_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${
+      isHttps ? '; Secure' : ''
+    }`;
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'सत्र यशस्वीरीत्या समाप्त केले (Logged out)',
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Set-Cookie': clearCookieHeader,
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true',
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
+  }
+
+  // -------------------------------------------------------------
+  // GET /api/editorial/auth/session
+  // Checks if client has an active authenticated session
+  // -------------------------------------------------------------
+  if (method === 'GET' && path === '/api/editorial/auth/session') {
+    const sessionId = await getAuthenticatedSession(request, env);
+    if (!sessionId) {
+      return jsonResponse({ authenticated: false }, 200);
+    }
+
+    return jsonResponse(
+      {
+        authenticated: true,
+        user: { role: 'editor', editorInChief: 'दिलीप सोनाळे' },
+      },
+      200
+    );
+  }
+
+  // =============================================================
+  // PART 3: PROTECTED EDITORIAL DASHBOARD ENDPOINTS (/api/editorial/*)
+  // All endpoints require a valid session in D1.
   // =============================================================
 
   if (path.startsWith('/api/editorial')) {
-    // Safety check: Validate editorial authentication
-    if (!isAuthorizedEditorial(request, env)) {
+    const sessionId = await getAuthenticatedSession(request, env);
+    if (!sessionId) {
       return jsonResponse(
         {
-          error: 'अनधिकृत प्रवेश: वैध संपादकीय सुरक्षा की आवश्यक (Unauthorized: Valid editorial key required)',
-          code: 'UNAUTHORIZED_EDITORIAL',
+          error:
+            'अनधिकृत प्रवेश: सक्रिय संपादकीय सत्र आवश्यक (Unauthorized: Active editorial session required. Please login)',
+          code: 'UNAUTHORIZED_SESSION',
         },
         401
       );
@@ -333,7 +535,8 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       const searchParam = url.searchParams.get('search');
       const sortParam = url.searchParams.get('sort') || 'newest';
 
-      let countQuery = "SELECT COUNT(*) as count FROM stories LEFT JOIN news_sources ON stories.source_id = news_sources.id WHERE stories.status = 'incoming'";
+      let countQuery =
+        "SELECT COUNT(*) as count FROM stories LEFT JOIN news_sources ON stories.source_id = news_sources.id WHERE stories.status = 'incoming'";
       let selectQuery = `
         SELECT
           stories.*,
@@ -403,7 +606,8 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       const searchParam = url.searchParams.get('search');
       const sortParam = url.searchParams.get('sort') || 'newest';
 
-      let countQuery = 'SELECT COUNT(*) as count FROM stories LEFT JOIN news_sources ON stories.source_id = news_sources.id WHERE 1=1';
+      let countQuery =
+        'SELECT COUNT(*) as count FROM stories LEFT JOIN news_sources ON stories.source_id = news_sources.id WHERE 1=1';
       let selectQuery = `
         SELECT
           stories.*,
@@ -510,20 +714,22 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
       // Preserve original source data on initial edit
       const origTitle = existing.original_title || existing.title;
-      const origDesc = existing.original_description !== undefined && existing.original_description !== null
-        ? existing.original_description
-        : existing.description;
+      const origDesc =
+        existing.original_description !== undefined && existing.original_description !== null
+          ? existing.original_description
+          : existing.description;
 
       const newTitle = body.title !== undefined ? body.title.trim() : existing.title;
       const newDesc = body.description !== undefined ? body.description.trim() : existing.description;
       const newCategory = body.category !== undefined ? body.category.trim() : existing.category;
       const newImageUrl = body.image_url !== undefined ? body.image_url.trim() : existing.image_url;
       const newAuthor = body.author !== undefined ? body.author.trim() : existing.author;
-      const newTags = body.tags !== undefined ? body.tags.trim() : (existing.tags || '');
-      const newNotes = body.editorial_notes !== undefined ? body.editorial_notes.trim() : (existing.editorial_notes || '');
-      const newStatus = body.status && ['incoming', 'review', 'approved', 'published', 'rejected', 'archived'].includes(body.status)
-        ? body.status
-        : existing.status;
+      const newTags = body.tags !== undefined ? body.tags.trim() : existing.tags || '';
+      const newNotes = body.editorial_notes !== undefined ? body.editorial_notes.trim() : existing.editorial_notes || '';
+      const newStatus =
+        body.status && ['incoming', 'review', 'approved', 'published', 'rejected', 'archived'].includes(body.status)
+          ? body.status
+          : existing.status;
 
       await env.DB.prepare(`
         UPDATE stories
@@ -571,7 +777,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // -----------------------------------------------------------
     if (method === 'POST' && path.match(/^\/api\/editorial\/story\/[^/]+\/review$/)) {
       const storyId = decodeURIComponent(path.split('/')[4]);
-      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?').bind(storyId).first<{ id: string; status: StoryStatus }>();
+      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?')
+        .bind(storyId)
+        .first<{ id: string; status: StoryStatus }>();
 
       if (!existing) {
         return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
@@ -595,7 +803,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // -----------------------------------------------------------
     if (method === 'POST' && path.match(/^\/api\/editorial\/story\/[^/]+\/approve$/)) {
       const storyId = decodeURIComponent(path.split('/')[4]);
-      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?').bind(storyId).first<{ id: string; status: StoryStatus }>();
+      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?')
+        .bind(storyId)
+        .first<{ id: string; status: StoryStatus }>();
 
       if (!existing) {
         return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
@@ -623,7 +833,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // -----------------------------------------------------------
     if (method === 'POST' && path.match(/^\/api\/editorial\/story\/[^/]+\/reject$/)) {
       const storyId = decodeURIComponent(path.split('/')[4]);
-      const existing = await env.DB.prepare('SELECT id, status, editorial_notes FROM stories WHERE id = ?').bind(storyId).first<{ id: string; status: StoryStatus; editorial_notes?: string }>();
+      const existing = await env.DB.prepare('SELECT id, status, editorial_notes FROM stories WHERE id = ?')
+        .bind(storyId)
+        .first<{ id: string; status: StoryStatus; editorial_notes?: string }>();
 
       if (!existing) {
         return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
@@ -659,7 +871,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // -----------------------------------------------------------
     if (method === 'POST' && path.match(/^\/api\/editorial\/story\/[^/]+\/publish$/)) {
       const storyId = decodeURIComponent(path.split('/')[4]);
-      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?').bind(storyId).first<{ id: string; status: StoryStatus }>();
+      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?')
+        .bind(storyId)
+        .first<{ id: string; status: StoryStatus }>();
 
       if (!existing) {
         return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
@@ -669,7 +883,8 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       if (existing.status === 'incoming') {
         return jsonResponse(
           {
-            error: "थेट अप्रमाणित बातमी प्रकाशित करता येत नाही. आधी बातमी तपासून 'मंजूर' (approve) करा. (Story must be reviewed and approved before publishing)",
+            error:
+              "थेट अप्रमाणित बातमी प्रकाशित करता येत नाही. आधी बातमी तपासून 'मंजूर' (approve) करा. (Story must be reviewed and approved before publishing)",
             code: 'STATUS_FLOW_VIOLATION',
           },
           400
@@ -677,7 +892,10 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
       }
 
       if (existing.status === 'published') {
-        return jsonResponse({ message: 'सदर बातमी आधीच प्रकाशित आहे', data: await getJoinedStoryById(env.DB, storyId) });
+        return jsonResponse({
+          message: 'सदर बातमी आधीच प्रकाशित आहे',
+          data: await getJoinedStoryById(env.DB, storyId),
+        });
       }
 
       await env.DB.prepare("UPDATE stories SET status = 'published', updated_at = datetime('now') WHERE id = ?")
@@ -698,7 +916,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
     // -----------------------------------------------------------
     if (method === 'POST' && path.match(/^\/api\/editorial\/story\/[^/]+\/archive$/)) {
       const storyId = decodeURIComponent(path.split('/')[4]);
-      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?').bind(storyId).first<{ id: string; status: StoryStatus }>();
+      const existing = await env.DB.prepare('SELECT id, status FROM stories WHERE id = ?')
+        .bind(storyId)
+        .first<{ id: string; status: StoryStatus }>();
 
       if (!existing) {
         return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
@@ -718,239 +938,200 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
   }
 
   // =============================================================
-  // PART 3: PROTECTED INGESTION & ADMIN ENDPOINTS (/api/admin/*)
+  // PART 4: BACKGROUND INGESTION & ADMIN ENDPOINTS (/api/admin/*)
+  // Protected strictly via authenticated session OR valid Bearer ADMIN_API_KEY
+  // (No hardcoded fallback strings allowed)
   // =============================================================
 
-  // -------------------------------------------------------------
-  // Protected Endpoint: POST /api/admin/refresh (or /api/ingest)
-  // Supports optional ?source_id=... to test single feeds
-  // -------------------------------------------------------------
-  if (method === 'POST' && (path === '/api/admin/refresh' || path === '/api/ingest')) {
-    if (!isAuthorizedAdmin(request, env)) {
-      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized: Invalid or missing admin key)' }, 401);
+  if (path.startsWith('/api/admin/')) {
+    const hasSession = Boolean(await getAuthenticatedSession(request, env));
+    let hasValidSecret = false;
+    const authHeader = request.headers.get('Authorization') || '';
+    const xAdminKey = request.headers.get('X-Admin-Key') || '';
+
+    if (authHeader.startsWith('Bearer ') && env.ADMIN_API_KEY && env.ADMIN_API_KEY.trim()) {
+      const token = authHeader.slice(7).trim();
+      hasValidSecret = await verifyAdminSecret(token, env.ADMIN_API_KEY);
+    } else if (xAdminKey && env.ADMIN_API_KEY && env.ADMIN_API_KEY.trim()) {
+      hasValidSecret = await verifyAdminSecret(xAdminKey, env.ADMIN_API_KEY);
     }
 
-    let targetSourceId = url.searchParams.get('source_id') || undefined;
-    if (!targetSourceId) {
+    if (!hasSession && !hasValidSecret) {
+      return jsonResponse(
+        { error: 'अनधिकृत प्रवेश (Unauthorized: Valid admin authentication required)' },
+        401
+      );
+    }
+
+    // -----------------------------------------------------------
+    // POST /api/admin/refresh (or /api/ingest)
+    // -----------------------------------------------------------
+    if (method === 'POST' && (path === '/api/admin/refresh' || path === '/api/ingest')) {
+      let targetSourceId = url.searchParams.get('source_id') || undefined;
+      if (!targetSourceId) {
+        try {
+          const body = (await request.json()) as { source_id?: string; sourceId?: string };
+          targetSourceId = body.source_id || body.sourceId;
+        } catch {}
+      }
+
+      const summary = await runIngestionPipeline(env, targetSourceId);
+      return jsonResponse({
+        success: true,
+        message: 'साप्ताहिक वृत्त संकलन यशस्वीरीत्या पूर्ण झाले (Ingestion completed)',
+        targetSourceId: targetSourceId || 'all_active',
+        summary,
+      });
+    }
+
+    // -----------------------------------------------------------
+    // POST /api/admin/publish-batch
+    // -----------------------------------------------------------
+    if (method === 'POST' && path === '/api/admin/publish-batch') {
+      let body: { source_id?: string; limit?: number } = {};
       try {
-        const body = (await request.json()) as { source_id?: string; sourceId?: string };
-        targetSourceId = body.source_id || body.sourceId;
+        body = await request.json();
       } catch {}
+
+      const limit = Math.min(50, body.limit || 10);
+      let updateSql = `
+        UPDATE stories
+        SET status = 'published', updated_at = datetime('now')
+        WHERE id IN (
+          SELECT id FROM stories WHERE status IN ('incoming', 'approved')
+      `;
+      const params: (string | number)[] = [];
+
+      if (body.source_id) {
+        updateSql += ' AND source_id = ?';
+        params.push(body.source_id);
+      }
+
+      updateSql += ' ORDER BY published_at DESC LIMIT ?)';
+      params.push(limit);
+
+      const updateRes = await env.DB.prepare(updateSql).bind(...params).run();
+
+      return jsonResponse({
+        success: true,
+        publishedCount: updateRes.meta.changes,
+        message: `${updateRes.meta.changes} बातम्या प्रकाशित केल्या (Published stories)`,
+      });
     }
 
-    const summary = await runIngestionPipeline(env, targetSourceId);
-    return jsonResponse({
-      success: true,
-      message: 'साप्ताहिक वृत्त संकलन यशस्वीरीत्या पूर्ण झाले (Ingestion completed)',
-      targetSourceId: targetSourceId || 'all_active',
-      summary,
-    });
-  }
+    // -----------------------------------------------------------
+    // POST /api/admin/stories/sample
+    // -----------------------------------------------------------
+    if (method === 'POST' && path === '/api/admin/stories/sample') {
+      let body: Partial<StoryRow> = {};
+      try {
+        body = await request.json();
+      } catch {}
 
-  // -------------------------------------------------------------
-  // Protected Endpoint: POST /api/admin/publish-batch
-  // Publishes approved/incoming stories for editorial verification
-  // -------------------------------------------------------------
-  if (method === 'POST' && path === '/api/admin/publish-batch') {
-    if (!isAuthorizedAdmin(request, env)) {
-      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized)' }, 401);
-    }
+      const title = body.title || 'महाराष्ट्र विधिमंडळ: शेतकरी सिंचन व रोजगार योजनेसाठी विशेष तरतूद';
+      const sourceUrl = body.source_url || 'https://pib.gov.in/sample-story-1';
+      const sourceId = body.source_id || 'src_gov_pib_mr';
+      const category = body.category || 'महाराष्ट्र';
+      const status: StoryStatus = body.status || 'published';
+      const publishedAt = body.published_at || new Date().toISOString();
+      const contentHash = await computeContentHash(`${title}|${sourceUrl}`);
+      const storyId = body.id || `sty_sample_${Date.now()}`;
 
-    let body: { source_id?: string; limit?: number } = {};
-    try {
-      body = await request.json();
-    } catch {}
+      // Verify duplicate before insert
+      const existing = await env.DB.prepare('SELECT id FROM stories WHERE content_hash = ? LIMIT 1')
+        .bind(contentHash)
+        .first<{ id: string }>();
 
-    const limit = Math.min(50, body.limit || 10);
-    let updateSql = `
-      UPDATE stories
-      SET status = 'published', updated_at = datetime('now')
-      WHERE id IN (
-        SELECT id FROM stories WHERE status IN ('incoming', 'approved')
-    `;
-    const params: (string | number)[] = [];
+      if (existing) {
+        return jsonResponse(
+          {
+            success: false,
+            duplicate: true,
+            message: 'सदर बातमी आधीच अस्तित्वात आहे (Duplicate story detected via content_hash)',
+            existingId: existing.id,
+          },
+          409
+        );
+      }
 
-    if (body.source_id) {
-      updateSql += ' AND source_id = ?';
-      params.push(body.source_id);
-    }
+      await env.DB.prepare(`
+        INSERT INTO stories (
+          id, source_id, source_url, source_guid, title, description,
+          image_url, author, published_at, category, language,
+          status, content_hash, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mr', ?, ?, datetime('now'), datetime('now'))
+      `)
+        .bind(
+          storyId,
+          sourceId,
+          sourceUrl,
+          body.source_guid || sourceUrl,
+          title,
+          body.description || 'महाराष्ट्रातील ग्रामीण विकासाला गती देण्यासाठी राज्य शासनाची महत्त्वपूर्ण घोषणा.',
+          body.image_url ||
+            'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
+          body.author || 'मुख्य संपादक दिलीप सोनाळे विशेष ब्युरो',
+          publishedAt,
+          category,
+          status,
+          contentHash
+        )
+        .run();
 
-    updateSql += ' ORDER BY published_at DESC LIMIT ?)';
-    params.push(limit);
+      const createdStory = await getJoinedStoryById(env.DB, storyId);
 
-    const updateRes = await env.DB.prepare(updateSql).bind(...params).run();
-
-    return jsonResponse({
-      success: true,
-      publishedCount: updateRes.meta.changes,
-      message: `${updateRes.meta.changes} बातम्या प्रकाशित केल्या (Published stories)`,
-    });
-  }
-
-  // -------------------------------------------------------------
-  // Protected Endpoint: POST /api/admin/stories/sample
-  // Helper for testing insertion of a sample story
-  // -------------------------------------------------------------
-  if (method === 'POST' && path === '/api/admin/stories/sample') {
-    if (!isAuthorizedAdmin(request, env)) {
-      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized)' }, 401);
-    }
-
-    let body: Partial<StoryRow> = {};
-    try {
-      body = await request.json();
-    } catch {}
-
-    const title = body.title || 'महाराष्ट्र विधिमंडळ: शेतकरी सिंचन व रोजगार योजनेसाठी विशेष तरतूद';
-    const sourceUrl = body.source_url || 'https://pib.gov.in/sample-story-1';
-    const sourceId = body.source_id || 'src_gov_pib_mr';
-    const category = body.category || 'महाराष्ट्र';
-    const status: StoryStatus = body.status || 'published';
-    const publishedAt = body.published_at || new Date().toISOString();
-    const contentHash = await computeContentHash(`${title}|${sourceUrl}`);
-    const storyId = body.id || `sty_sample_${Date.now()}`;
-
-    // Verify duplicate before insert
-    const existing = await env.DB.prepare('SELECT id FROM stories WHERE content_hash = ? LIMIT 1')
-      .bind(contentHash)
-      .first<{ id: string }>();
-
-    if (existing) {
       return jsonResponse(
         {
-          success: false,
-          duplicate: true,
-          message: 'सदर बातमी आधीच अस्तित्वात आहे (Duplicate story detected via content_hash)',
-          existingId: existing.id,
+          success: true,
+          message: 'चाचणी बातमी यशस्वीरीत्या जतन केली (Sample story created)',
+          data: createdStory,
         },
-        409
+        201
       );
     }
 
-    await env.DB.prepare(`
-      INSERT INTO stories (
-        id, source_id, source_url, source_guid, title, description,
-        image_url, author, published_at, category, language,
-        status, content_hash, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mr', ?, ?, datetime('now'), datetime('now'))
-    `)
-      .bind(
-        storyId,
-        sourceId,
-        sourceUrl,
-        body.source_guid || sourceUrl,
-        title,
-        body.description || 'महाराष्ट्रातील ग्रामीण विकासाला गती देण्यासाठी राज्य शासनाची महत्त्वपूर्ण घोषणा.',
-        body.image_url || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
-        body.author || 'मुख्य संपादक दिलीप सोनाळे विशेष ब्युरो',
-        publishedAt,
-        category,
-        status,
-        contentHash
+    // -----------------------------------------------------------
+    // POST /api/admin/stories/:id/status
+    // -----------------------------------------------------------
+    if (method === 'POST' && path.startsWith('/api/admin/stories/') && path.endsWith('/status')) {
+      const storyId = path.replace('/api/admin/stories/', '').replace('/status', '');
+      let body: { status?: StoryStatus } = {};
+      try {
+        body = await request.json();
+      } catch {}
+
+      const validStatuses: StoryStatus[] = [
+        'incoming',
+        'review',
+        'approved',
+        'published',
+        'rejected',
+        'archived',
+      ];
+
+      if (!body.status || !validStatuses.includes(body.status)) {
+        return jsonResponse(
+          { error: `अवैध स्थिती (Invalid status). Allowed: ${validStatuses.join(', ')}` },
+          400
+        );
+      }
+
+      const updateRes = await env.DB.prepare(
+        "UPDATE stories SET status = ?, updated_at = datetime('now') WHERE id = ?"
       )
-      .run();
+        .bind(body.status, storyId)
+        .run();
 
-    const createdStory = await getJoinedStoryById(env.DB, storyId);
+      if (updateRes.meta.changes === 0) {
+        return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
+      }
 
-    return jsonResponse(
-      {
+      const updated = await getJoinedStoryById(env.DB, storyId);
+      return jsonResponse({
         success: true,
-        message: 'चाचणी बातमी यशस्वीरीत्या जतन केली (Sample story created)',
-        data: createdStory,
-      },
-      201
-    );
-  }
-
-  // -------------------------------------------------------------
-  // Protected Endpoint: POST /api/admin/stories/:id/status
-  // Updates story status (e.g. approve/publish)
-  // -------------------------------------------------------------
-  if (method === 'POST' && path.startsWith('/api/admin/stories/') && path.endsWith('/status')) {
-    if (!isAuthorizedAdmin(request, env)) {
-      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized)' }, 401);
+        data: updated,
+      });
     }
-
-    const storyId = path.replace('/api/admin/stories/', '').replace('/status', '');
-    let body: { status?: StoryStatus } = {};
-    try {
-      body = await request.json();
-    } catch {}
-
-    const validStatuses: StoryStatus[] = [
-      'incoming',
-      'review',
-      'approved',
-      'published',
-      'rejected',
-      'archived',
-    ];
-
-    if (!body.status || !validStatuses.includes(body.status)) {
-      return jsonResponse(
-        { error: `अवैध स्थिती (Invalid status). Allowed: ${validStatuses.join(', ')}` },
-        400
-      );
-    }
-
-    const updateRes = await env.DB.prepare(
-      "UPDATE stories SET status = ?, updated_at = datetime('now') WHERE id = ?"
-    )
-      .bind(body.status, storyId)
-      .run();
-
-    if (updateRes.meta.changes === 0) {
-      return jsonResponse({ error: 'बातमी सापडली नाही (Story not found)' }, 404);
-    }
-
-    const updated = await getJoinedStoryById(env.DB, storyId);
-
-    return jsonResponse({
-      success: true,
-      data: updated,
-    });
-  }
-
-  // -------------------------------------------------------------
-  // Protected Endpoint: GET /api/admin/stories
-  // Allows viewing stories of any status (incoming, review, etc.)
-  // -------------------------------------------------------------
-  if (method === 'GET' && path === '/api/admin/stories') {
-    if (!isAuthorizedAdmin(request, env)) {
-      return jsonResponse({ error: 'अनधिकृत प्रवेश (Unauthorized)' }, 401);
-    }
-
-    const statusParam = url.searchParams.get('status');
-    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
-    const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20));
-    const offset = (page - 1) * limit;
-
-    let query = `
-      SELECT
-        stories.*,
-        news_sources.name as source_name,
-        news_sources.source_group as source_group
-      FROM stories
-      LEFT JOIN news_sources ON stories.source_id = news_sources.id
-    `;
-    const params: (string | number)[] = [];
-
-    if (statusParam) {
-      query += ' WHERE stories.status = ?';
-      params.push(statusParam);
-    }
-
-    query += ' ORDER BY stories.created_at DESC LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-
-    const rows = await env.DB.prepare(query).bind(...params).all<StoryRow>();
-
-    return jsonResponse({
-      success: true,
-      page,
-      limit,
-      data: rows.results || [],
-    });
   }
 
   // Fallback 404 for unknown /api/* routes

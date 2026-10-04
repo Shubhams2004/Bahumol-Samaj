@@ -1,11 +1,11 @@
 /**
  * @file test_editorial_dashboard.ts
  * Comprehensive Test Suite for Editorial Dashboard and API Operations.
- * Verifies all 10 Editorial Test Requirements.
+ * Uses Production Session Authentication.
  */
 
 import { handleApiRequest } from '../src/worker/api';
-import { Env, StoryRow, NewsSourceRow } from '../src/worker/types';
+import { Env, StoryRow, NewsSourceRow, EditorialSessionRow } from '../src/worker/types';
 
 class MockPreparedStatement {
   constructor(private sql: string, private db: MockDatabase, private params: (string | number)[] = []) {}
@@ -21,6 +21,16 @@ class MockPreparedStatement {
 
   async all<T = Record<string, unknown>>(): Promise<{ results: T[]; success: boolean; meta: Record<string, unknown> }> {
     const normalized = this.sql.replace(/\s+/g, ' ').toUpperCase();
+
+    // SELECT from editorial_sessions
+    if (normalized.includes('FROM EDITORIAL_SESSIONS')) {
+      const sessionId = this.params[0] as string;
+      const now = new Date();
+      const valid = this.db.sessions.filter(
+        (s) => s.id === sessionId && new Date(s.expires_at) > now
+      );
+      return { results: valid as unknown as T[], success: true, meta: {} };
+    }
 
     // Group stats: SELECT status, COUNT(*) as count FROM stories GROUP BY status
     if (normalized.includes('COUNT(*)') && normalized.includes('GROUP BY STATUS')) {
@@ -95,6 +105,28 @@ class MockPreparedStatement {
   async run(): Promise<{ meta: { changes: number } }> {
     const normalized = this.sql.replace(/\s+/g, ' ').toUpperCase();
 
+    // INSERT INTO editorial_sessions
+    if (normalized.includes('INSERT INTO EDITORIAL_SESSIONS')) {
+      const sessionId = this.params[0] as string;
+      this.db.sessions.push({
+        id: sessionId,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 86400 * 1000).toISOString(),
+      });
+      return { meta: { changes: 1 } };
+    }
+
+    // DELETE FROM editorial_sessions
+    if (normalized.includes('DELETE FROM EDITORIAL_SESSIONS')) {
+      const sessionId = this.params[0] as string;
+      const index = this.db.sessions.findIndex((s) => s.id === sessionId);
+      if (index !== -1) {
+        this.db.sessions.splice(index, 1);
+        return { meta: { changes: 1 } };
+      }
+      return { meta: { changes: 0 } };
+    }
+
     // UPDATE stories status
     if (normalized.includes('UPDATE STORIES SET STATUS = ?') || normalized.includes("UPDATE STORIES SET STATUS = '")) {
       const targetId = this.params[this.params.length - 1];
@@ -107,8 +139,7 @@ class MockPreparedStatement {
           if (normalized.includes('EDITORIAL_NOTES = ?')) {
             story.editorial_notes = this.params[0] as string;
           }
-        }
-        else if (normalized.includes("STATUS = 'PUBLISHED'")) story.status = 'published';
+        } else if (normalized.includes("STATUS = 'PUBLISHED'")) story.status = 'published';
         else if (normalized.includes("STATUS = 'ARCHIVED'")) story.status = 'archived';
         else if (this.params[0]) story.status = this.params[0] as StoryRow['status'];
 
@@ -145,6 +176,7 @@ class MockPreparedStatement {
 }
 
 class MockDatabase {
+  sessions: EditorialSessionRow[] = [];
   sources: NewsSourceRow[] = [
     {
       id: 'src_pib_mr',
@@ -232,14 +264,26 @@ async function runEditorialTestSuite() {
   }
 
   const db = new MockDatabase();
+  const ADMIN_SECRET = 'cf_secret_admin_editorial_pass_2026';
   const env: Env = {
     DB: db as unknown as Env['DB'],
     ASSETS: { fetch: async () => new Response('assets') } as unknown as Env['ASSETS'],
-    ADMIN_API_KEY: 'bahumol-editor-2026',
+    ADMIN_API_KEY: ADMIN_SECRET,
   };
 
+  // Perform login to establish an authenticated session
+  const reqLogin = new Request('https://bahumolsamaj.com/api/editorial/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: ADMIN_SECRET }),
+  });
+  const resLogin = await handleApiRequest(reqLogin, env);
+  const setCookie = resLogin.headers.get('Set-Cookie') || '';
+  const cookieMatch = setCookie.match(/editorial_session=([^;]+)/);
+  const sessionCookie = cookieMatch ? `editorial_session=${cookieMatch[1]}` : '';
+
   const authHeaders = {
-    'X-Editorial-Key': 'bahumol-editor-2026',
+    Cookie: sessionCookie,
     'Content-Type': 'application/json',
   };
 
@@ -250,18 +294,17 @@ async function runEditorialTestSuite() {
     headers: authHeaders,
   });
   const resIncoming = await handleApiRequest(reqIncoming, env);
-  const dataIncoming = await resIncoming.json() as { success: boolean; data: StoryRow[]; total: number };
+  const dataIncoming = (await resIncoming.json()) as { success: boolean; data: StoryRow[]; total: number };
 
   assert(
     resIncoming.status === 200 &&
-    dataIncoming.success &&
-    dataIncoming.data.some((s) => s.id === 'sty_incoming_001'),
+      dataIncoming.success &&
+      dataIncoming.data.some((s) => s.id === 'sty_incoming_001'),
     '1. Incoming story appears in dashboard (/api/editorial/incoming)'
   );
 
   // -------------------------------------------------------------
   // Test 2: Editing works (PATCH /api/editorial/story/:id)
-  // Preserves original title/description and sets is_edited = 1
   // -------------------------------------------------------------
   const reqEdit = new Request('https://bahumolsamaj.com/api/editorial/story/sty_incoming_001', {
     method: 'PATCH',
@@ -273,14 +316,14 @@ async function runEditorialTestSuite() {
     }),
   });
   const resEdit = await handleApiRequest(reqEdit, env);
-  const dataEdit = await resEdit.json() as { success: boolean; data: StoryRow };
+  const dataEdit = (await resEdit.json()) as { success: boolean; data: StoryRow };
 
   assert(
     resEdit.status === 200 &&
-    dataEdit.data.title.startsWith('संपादकीय मथळा') &&
-    dataEdit.data.original_title === 'महाराष्ट्र कृषी अर्थसंकल्प: सिंचनासाठी ५००० कोटी रुपयांची घोषणा' &&
-    dataEdit.data.is_edited === 1 &&
-    dataEdit.data.tags === 'शेती, सिंचन, महाराष्ट्र शासन',
+      dataEdit.data.title.startsWith('संपादकीय मथळा') &&
+      dataEdit.data.original_title === 'महाराष्ट्र कृषी अर्थसंकल्प: सिंचनासाठी ५००० कोटी रुपयांची घोषणा' &&
+      dataEdit.data.is_edited === 1 &&
+      dataEdit.data.tags === 'शेती, सिंचन, महाराष्ट्र शासन',
     '2. Editing works without corrupting original source metadata'
   );
 
@@ -292,7 +335,7 @@ async function runEditorialTestSuite() {
     headers: authHeaders,
   });
   const resApprove = await handleApiRequest(reqApprove, env);
-  const dataApprove = await resApprove.json() as { success: boolean; data: StoryRow };
+  const dataApprove = (await resApprove.json()) as { success: boolean; data: StoryRow };
 
   assert(
     resApprove.status === 200 && dataApprove.data.status === 'approved',
@@ -302,7 +345,6 @@ async function runEditorialTestSuite() {
   // -------------------------------------------------------------
   // Test 4: Reject works (POST /api/editorial/story/:id/reject)
   // -------------------------------------------------------------
-  // First insert a test story to reject
   db.stories.push({
     id: 'sty_to_reject_003',
     source_id: 'src_sakal_mr',
@@ -327,12 +369,12 @@ async function runEditorialTestSuite() {
     body: JSON.stringify({ reason: 'अपुऱ्या संदर्भामुळे संपादकाने नाकारले' }),
   });
   const resReject = await handleApiRequest(reqReject, env);
-  const dataReject = await resReject.json() as { success: boolean; data: StoryRow };
+  const dataReject = (await resReject.json()) as { success: boolean; data: StoryRow };
 
   assert(
     resReject.status === 200 &&
-    dataReject.data.status === 'rejected' &&
-    (dataReject.data.editorial_notes || '').includes('अपुऱ्या संदर्भामुळे'),
+      dataReject.data.status === 'rejected' &&
+      (dataReject.data.editorial_notes || '').includes('अपुऱ्या संदर्भामुळे'),
     '4. Reject works (transitions story to rejected status with reason)'
   );
 
@@ -344,7 +386,7 @@ async function runEditorialTestSuite() {
     headers: authHeaders,
   });
   const resPublish = await handleApiRequest(reqPublish, env);
-  const dataPublish = await resPublish.json() as { success: boolean; data: StoryRow };
+  const dataPublish = (await resPublish.json()) as { success: boolean; data: StoryRow };
 
   assert(
     resPublish.status === 200 && dataPublish.data.status === 'published',
@@ -359,25 +401,24 @@ async function runEditorialTestSuite() {
     headers: authHeaders,
   });
   const resArchive = await handleApiRequest(reqArchive, env);
-  const dataArchive = await resArchive.json() as { success: boolean; data: StoryRow };
+  const dataArchive = (await resArchive.json()) as { success: boolean; data: StoryRow };
 
   const reqIncomingAfter = new Request('https://bahumolsamaj.com/api/editorial/incoming', {
     headers: authHeaders,
   });
   const resIncomingAfter = await handleApiRequest(reqIncomingAfter, env);
-  const dataIncomingAfter = await resIncomingAfter.json() as { data: StoryRow[] };
+  const dataIncomingAfter = (await resIncomingAfter.json()) as { data: StoryRow[] };
 
   assert(
     resArchive.status === 200 &&
-    dataArchive.data.status === 'archived' &&
-    !dataIncomingAfter.data.some((s) => s.id === 'sty_to_reject_003'),
+      dataArchive.data.status === 'archived' &&
+      !dataIncomingAfter.data.some((s) => s.id === 'sty_to_reject_003'),
     '6. Archived stories disappear from active lists'
   );
 
   // -------------------------------------------------------------
   // Test 7: Unpublished stories remain hidden from public API
   // -------------------------------------------------------------
-  // Add stories with review and rejected status
   db.stories.push({
     id: 'sty_review_only',
     source_id: 'src_pib_mr',
@@ -398,7 +439,7 @@ async function runEditorialTestSuite() {
 
   const reqPublicList = new Request('https://bahumolsamaj.com/api/news');
   const resPublicList = await handleApiRequest(reqPublicList, env);
-  const dataPublicList = await resPublicList.json() as { data: StoryRow[] };
+  const dataPublicList = (await resPublicList.json()) as { data: StoryRow[] };
 
   const reqPublicSingle = new Request('https://bahumolsamaj.com/api/news/sty_review_only');
   const resPublicSingle = await handleApiRequest(reqPublicSingle, env);
@@ -408,8 +449,8 @@ async function runEditorialTestSuite() {
 
   assert(
     !dataPublicList.data.some((s) => s.status !== 'published') &&
-    resPublicSingle.status === 404 &&
-    resPublicRejected.status === 404,
+      resPublicSingle.status === 404 &&
+      resPublicRejected.status === 404,
     '7. Unpublished/review/rejected stories remain strictly hidden from public API (HTTP 404)'
   );
 
@@ -418,13 +459,13 @@ async function runEditorialTestSuite() {
   // -------------------------------------------------------------
   const reqPublicStory = new Request('https://bahumolsamaj.com/api/news/sty_incoming_001');
   const resPublicStory = await handleApiRequest(reqPublicStory, env);
-  const dataPublicStory = await resPublicStory.json() as { success: boolean; data: StoryRow };
+  const dataPublicStory = (await resPublicStory.json()) as { success: boolean; data: StoryRow };
 
   assert(
     resPublicStory.status === 200 &&
-    dataPublicStory.success &&
-    dataPublicStory.data.id === 'sty_incoming_001' &&
-    dataPublicStory.data.status === 'published',
+      dataPublicStory.success &&
+      dataPublicStory.data.id === 'sty_incoming_001' &&
+      dataPublicStory.data.status === 'published',
     '8. Published stories appear in public API (/api/news/:id)'
   );
 
@@ -436,18 +477,15 @@ async function runEditorialTestSuite() {
   });
   const resNotFound = await handleApiRequest(reqNotFound, env);
 
-  assert(
-    resNotFound.status === 404,
-    '9. Invalid story IDs return proper errors (HTTP 404)'
-  );
+  assert(resNotFound.status === 404, '9. Invalid story IDs return proper errors (HTTP 404)');
 
   // -------------------------------------------------------------
-  // Test 10: Unauthorized editorial operations are blocked (HTTP 401)
-  // And status flow violations (publishing incoming directly) are rejected (HTTP 400)
+  // Test 10: Unauthorized editorial operations blocked (HTTP 401)
+  // And status flow violations (publishing incoming directly) rejected (HTTP 400)
   // -------------------------------------------------------------
   const reqNoAuth = new Request('https://bahumolsamaj.com/api/editorial/story/sty_incoming_001/approve', {
     method: 'POST',
-    // Missing X-Editorial-Key
+    // Missing session cookie
   });
   const resNoAuth = await handleApiRequest(reqNoAuth, env);
 
@@ -470,17 +508,20 @@ async function runEditorialTestSuite() {
     updated_at: new Date().toISOString(),
   });
 
-  const reqDirectPublish = new Request('https://bahumolsamaj.com/api/editorial/story/sty_direct_incoming/publish', {
-    method: 'POST',
-    headers: authHeaders,
-  });
+  const reqDirectPublish = new Request(
+    'https://bahumolsamaj.com/api/editorial/story/sty_direct_incoming/publish',
+    {
+      method: 'POST',
+      headers: authHeaders,
+    }
+  );
   const resDirectPublish = await handleApiRequest(reqDirectPublish, env);
-  const dataDirectPublish = await resDirectPublish.json() as { code?: string };
+  const dataDirectPublish = (await resDirectPublish.json()) as { code?: string };
 
   assert(
     resNoAuth.status === 401 &&
-    resDirectPublish.status === 400 &&
-    dataDirectPublish.code === 'STATUS_FLOW_VIOLATION',
+      resDirectPublish.status === 400 &&
+      dataDirectPublish.code === 'STATUS_FLOW_VIOLATION',
     '10. Security: Unauthorized requests blocked with 401; direct publishing of incoming rejected with 400'
   );
 

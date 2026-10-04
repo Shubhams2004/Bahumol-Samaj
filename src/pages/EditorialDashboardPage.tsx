@@ -1,7 +1,11 @@
 /**
  * @file EditorialDashboardPage.tsx
  * Professional Newsroom Editorial Dashboard for Bahumol Samaj Weekly Newspaper.
- * Provides complete workflow: Incoming -> Review -> Edit -> Approve -> Publish / Reject / Archive.
+ * Production-Safe Authentication:
+ * - Newsroom Login Screen
+ * - HttpOnly Cookie & Server-Side D1 Session
+ * - Logout Button & Session Expiration Handling
+ * - Complete status flow: Incoming -> Review -> Edit -> Approve -> Publish / Reject / Archive
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -23,7 +27,8 @@ import {
   Search,
   ExternalLink,
   Layers,
-  Key,
+  Lock,
+  LogOut,
   ShieldCheck,
   Check,
   Building2,
@@ -33,6 +38,8 @@ import {
   PenTool,
   History,
   FileCheck2,
+  AlertTriangle,
+  KeyRound,
 } from 'lucide-react';
 
 interface EditorialDashboardPageProps {
@@ -73,7 +80,22 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
   onNavigateHome,
   onNavigateTimeline,
 }) => {
-  // State
+  // Authentication State
+  const [authState, setAuthState] = useState<{
+    checking: boolean;
+    authenticated: boolean;
+    user?: { role: string; editorInChief: string };
+  }>({
+    checking: true,
+    authenticated: false,
+  });
+
+  // Login Form State
+  const [loginSecret, setLoginSecret] = useState<string>('');
+  const [loginLoading, setLoginLoading] = useState<boolean>(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Dashboard Tab & Stats State
   const [activeTab, setActiveTab] = useState<TabType>('incoming');
   const [stats, setStats] = useState<EditorialStats>({
     all: 0,
@@ -111,14 +133,27 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Session Key Management Dialog
-  const [isKeyDialogOpen, setIsKeyDialogOpen] = useState<boolean>(false);
-  const [editorialKeyInput, setEditorialKeyInput] = useState<string>(newsService.getEditorialKey());
-
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // Initial Check for Authenticated Session
+  useEffect(() => {
+    let isMounted = true;
+    newsService.checkEditorialSession().then((res) => {
+      if (isMounted) {
+        setAuthState({
+          checking: false,
+          authenticated: res.authenticated,
+          user: res.user,
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Load counts
   const loadStats = useCallback(async () => {
@@ -130,40 +165,87 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
   const loadStories = useCallback(async (targetPage: number = 1) => {
     setLoading(true);
     try {
-      const res = activeTab === 'incoming'
-        ? await newsService.fetchEditorialIncoming({
-            page: targetPage,
-            limit: 20,
-            category: selectedCategory,
-            source_group: selectedGroup,
-            search: searchQuery,
-            sort: sortOrder,
-          })
-        : await newsService.fetchEditorialStories({
-            status: activeTab === 'all' ? undefined : activeTab,
-            page: targetPage,
-            limit: 20,
-            category: selectedCategory,
-            source_group: selectedGroup,
-            search: searchQuery,
-            sort: sortOrder,
-          });
+      const res =
+        activeTab === 'incoming'
+          ? await newsService.fetchEditorialIncoming({
+              page: targetPage,
+              limit: 20,
+              category: selectedCategory,
+              source_group: selectedGroup,
+              search: searchQuery,
+              sort: sortOrder,
+            })
+          : await newsService.fetchEditorialStories({
+              status: activeTab === 'all' ? undefined : activeTab,
+              page: targetPage,
+              limit: 20,
+              category: selectedCategory,
+              source_group: selectedGroup,
+              search: searchQuery,
+              sort: sortOrder,
+            });
 
       setStories(res.stories);
       setTotalPages(res.totalPages);
       setTotalCount(res.total);
       setPage(targetPage);
-    } catch (e) {
+    } catch {
       showToast('बातम्या लोड करताना त्रुटी आली', 'error');
     } finally {
       setLoading(false);
     }
   }, [activeTab, selectedCategory, selectedGroup, searchQuery, sortOrder]);
 
+  // Load data when authenticated
   useEffect(() => {
-    loadStats();
-    loadStories(1);
-  }, [loadStats, loadStories]);
+    if (authState.authenticated) {
+      loadStats();
+      loadStories(1);
+    }
+  }, [authState.authenticated, loadStats, loadStories]);
+
+  // Handle Login Submit
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginSecret.trim()) {
+      setLoginError('कृपया संपादकीय सुरक्षा की प्रविष्ट करा.');
+      return;
+    }
+
+    setLoginLoading(true);
+    setLoginError(null);
+
+    const res = await newsService.loginEditorial(loginSecret);
+    setLoginLoading(false);
+
+    if (res.success) {
+      setLoginSecret('');
+      setAuthState({
+        checking: false,
+        authenticated: true,
+        user: (res.user as { role: string; editorInChief: string }) || {
+          role: 'editor',
+          editorInChief: 'दिलीप सोनाळे',
+        },
+      });
+      showToast('संपादकीय नियंत्रण कक्षात आपले स्वागत आहे');
+    } else {
+      setLoginError(res.message || 'अवैध संपादकीय सुरक्षा की');
+    }
+  };
+
+  // Handle Logout
+  const handleLogout = async () => {
+    setActionLoading('logout');
+    await newsService.logoutEditorial();
+    setActionLoading(null);
+    setAuthState({
+      checking: false,
+      authenticated: false,
+    });
+    setStories([]);
+    showToast('सत्र यशस्वीरीत्या समाप्त केले');
+  };
 
   // Open story for inspection/review
   const handleOpenReview = (story: EditorialStory, openInEdit: boolean = false) => {
@@ -311,27 +393,141 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
     }
   };
 
-  // Save session editorial key
-  const handleSaveKey = () => {
-    newsService.setEditorialKey(editorialKeyInput);
-    setIsKeyDialogOpen(false);
-    showToast('संपादकीय सुरक्षा की अद्ययावत झाली');
-    loadStats();
-    loadStories(1);
-  };
+  // =============================================================
+  // RENDER STATE 1: CHECKING INITIAL SESSION
+  // =============================================================
+  if (authState.checking) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-stone-500 font-sans">
+        <RefreshCw className="w-8 h-8 animate-spin text-red-700 mb-3" />
+        <p className="text-sm font-medium">संपादकीय सत्र पडताळणी सुरू आहे...</p>
+      </div>
+    );
+  }
 
+  // =============================================================
+  // RENDER STATE 2: AUTHENTICATION LOGIN SCREEN
+  // =============================================================
+  if (!authState.authenticated) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 font-sans">
+        {/* Back navigation */}
+        <div className="mb-6">
+          <button
+            onClick={onNavigateHome}
+            className="flex items-center gap-1.5 text-xs font-semibold text-stone-600 dark:text-stone-400 hover:text-red-700 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            मुख्य वर्तमानपत्राकडे परत जा
+          </button>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-800 rounded-lg p-6 sm:p-8 shadow-xl">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="inline-flex p-3 bg-red-100 dark:bg-red-950/60 rounded-full text-red-700 dark:text-red-400 mb-3">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div className="text-xs uppercase tracking-widest font-bold text-red-700 mb-1">
+              बहुमोल समाज • अंतर्गत डेस्क
+            </div>
+            <h1 className="font-serif text-2xl font-bold text-stone-900 dark:text-stone-100">
+              संपादकीय नियंत्रण कक्ष
+            </h1>
+            <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
+              मुख्य संपादक: <strong className="text-stone-900 dark:text-stone-200">दिलीप सोनाळे</strong>
+            </p>
+          </div>
+
+          {/* Security Alert / Info Box */}
+          <div className="p-3 bg-stone-100 dark:bg-stone-800/60 rounded border border-stone-200 dark:border-stone-700/80 mb-5 text-xs text-stone-600 dark:text-stone-300">
+            <div className="flex items-center gap-1.5 font-bold text-stone-800 dark:text-stone-200 mb-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              सुरक्षित प्रमाणीकरण
+            </div>
+            <p className="text-[11px] leading-relaxed text-stone-500 dark:text-stone-400">
+              हा कक्ष केवळ अधिकृत संपादकांसाठी राखीव आहे. Cloudflare Worker सीक्रेट{' '}
+              <code className="font-mono text-stone-800 dark:text-stone-200">ADMIN_API_KEY</code> द्वारे ओळख
+              पडताळली जाते.
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {loginError && (
+            <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2 animate-fade-in">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <div>
+                <p className="font-bold">प्रवेश नाकारला</p>
+                <p>{loginError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1.5">
+                संपादकीय सुरक्षा की (Secret Access Key)
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  placeholder="सुरक्षा की प्रविष्ट करा..."
+                  value={loginSecret}
+                  onChange={(e) => setLoginSecret(e.target.value)}
+                  disabled={loginLoading}
+                  className="w-full px-3 py-2 text-sm bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded focus:outline-hidden focus:ring-2 focus:ring-red-600 font-mono"
+                  autoFocus
+                />
+                <KeyRound className="w-4 h-4 absolute right-3 top-2.5 text-stone-400" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginLoading}
+              className="w-full py-2.5 px-4 bg-red-700 hover:bg-red-800 text-white rounded font-bold text-xs sm:text-sm tracking-wide transition-colors shadow-md disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+            >
+              {loginLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  पडताळणी सुरू आहे...
+                </>
+              ) : (
+                'संपादकीय कक्षात प्रवेश करा'
+              )}
+            </button>
+          </form>
+
+          {/* Cloudflare Setup Note */}
+          <div className="mt-6 pt-4 border-t border-stone-200 dark:border-stone-800 text-center">
+            <span className="text-[11px] text-stone-400 font-sans">
+              स्थानिक विकासासाठी <code className="font-mono text-stone-500">.dev.vars</code> वापरा.
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =============================================================
+  // RENDER STATE 3: AUTHENTICATED EDITORIAL DASHBOARD
+  // =============================================================
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 font-sans">
       {/* Toast Notification */}
       {toast && (
         <div
           className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded shadow-lg flex items-center gap-2 text-xs sm:text-sm font-medium animate-fade-in ${
-            toast.type === 'error'
-              ? 'bg-rose-900 text-white'
-              : 'bg-emerald-900 text-white'
+            toast.type === 'error' ? 'bg-rose-900 text-white' : 'bg-emerald-900 text-white'
           }`}
         >
-          {toast.type === 'error' ? <XCircle className="w-4 h-4 shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
+          {toast.type === 'error' ? (
+            <XCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <CheckCircle className="w-4 h-4 shrink-0" />
+          )}
           <span>{toast.message}</span>
         </div>
       )}
@@ -364,18 +560,15 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
           </span>
         </div>
 
-        {/* Action Controls: Key status & Ingest trigger */}
+        {/* Action Controls: Active Session Info, Ingest trigger, Logout */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsKeyDialogOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded border border-stone-300 dark:border-stone-700 cursor-pointer"
-            title="संपादकीय सुरक्षा की बदला"
-          >
-            <Key className="w-3 h-3 text-amber-600" />
-            <span>सुरक्षा की</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          </button>
+          {/* Active Session Badge */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 rounded border border-emerald-300 dark:border-emerald-800">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>सत्र: सक्रिय</span>
+          </div>
 
+          {/* RSS Ingest Trigger */}
           <button
             onClick={handleTriggerIngest}
             disabled={actionLoading === 'ingest'}
@@ -383,6 +576,17 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
           >
             <RefreshCw className={`w-3 h-3 ${actionLoading === 'ingest' ? 'animate-spin' : ''}`} />
             {actionLoading === 'ingest' ? 'संकलन सुरू...' : 'आरएसएस संकलन'}
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            disabled={actionLoading === 'logout'}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded border border-stone-300 dark:border-stone-700 cursor-pointer transition-colors"
+            title="संपादकीय सत्र बंद करा"
+          >
+            <LogOut className="w-3.5 h-3.5 text-stone-500" />
+            <span>लॉगआउट</span>
           </button>
         </div>
       </div>
@@ -395,14 +599,16 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
               अंतर्गत प्रणाली • Internal Desk
             </span>
             <span className="text-xs text-stone-400 font-sans">
-              मुख्य संपादक: <strong className="text-white">दिलीप सोनाळे</strong>
+              मुख्य संपादक:{' '}
+              <strong className="text-white">{authState.user?.editorInChief || 'दिलीप सोनाळे'}</strong>
             </span>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
             संपादकीय वृत्त पुनरावलोकन व मंजुरी कक्ष
           </h1>
           <p className="text-xs sm:text-sm text-stone-300 mt-1">
-            शासकीय, राष्ट्रीय व आंतरराष्ट्रीय स्रोतांतून आलेली कच्ची माहिती तपासून, संपादन करून प्रकाशनासाठी मंजूर करा.
+            शासकीय, राष्ट्रीय व आंतरराष्ट्रीय स्रोतांतून आलेली कच्ची माहिती तपासून, संपादन करून प्रकाशनासाठी
+            मंजूर करा.
           </p>
         </div>
 
@@ -574,7 +780,10 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded animate-pulse">
+            <div
+              key={i}
+              className="p-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded animate-pulse"
+            >
               <div className="h-4 w-32 bg-stone-200 dark:bg-stone-800 rounded mb-2" />
               <div className="h-6 w-3/4 bg-stone-200 dark:bg-stone-800 rounded mb-2" />
               <div className="h-4 w-1/2 bg-stone-200 dark:bg-stone-800 rounded" />
@@ -603,7 +812,8 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
             const groupMeta =
               (story.source_group && SOURCE_GROUP_META[story.source_group]) || {
                 label: story.source_group || 'वृत्त',
-                badgeClass: 'bg-stone-100 text-stone-800 border-stone-300 dark:bg-stone-800 dark:text-stone-300',
+                badgeClass:
+                  'bg-stone-100 text-stone-800 border-stone-300 dark:bg-stone-800 dark:text-stone-300',
                 icon: null,
               };
 
@@ -644,7 +854,9 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                         </span>
 
                         {/* Source Group Badge */}
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${groupMeta.badgeClass}`}>
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${groupMeta.badgeClass}`}
+                        >
                           {groupMeta.icon}
                           {groupMeta.label}
                         </span>
@@ -657,9 +869,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                         <span className="text-stone-300 dark:text-stone-700">•</span>
 
                         {/* Category */}
-                        <span className="text-red-700 dark:text-red-400 font-medium">
-                          {story.category}
-                        </span>
+                        <span className="text-red-700 dark:text-red-400 font-medium">{story.category}</span>
 
                         <span className="text-stone-300 dark:text-stone-700">•</span>
 
@@ -875,9 +1085,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                   </button>
                 </div>
 
-                <div className="text-[11px] text-stone-500 font-mono">
-                  ID: {inspectingStory.id}
-                </div>
+                <div className="text-[11px] text-stone-500 font-mono">ID: {inspectingStory.id}</div>
               </div>
 
               {/* Original Source Wire Metadata Box */}
@@ -898,11 +1106,15 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-stone-500">स्रोत संस्था:</span>{' '}
-                    <strong className="text-stone-800 dark:text-stone-200">{inspectingStory.source_name || inspectingStory.source_id}</strong>
+                    <strong className="text-stone-800 dark:text-stone-200">
+                      {inspectingStory.source_name || inspectingStory.source_id}
+                    </strong>
                   </div>
                   <div>
                     <span className="text-stone-500">स्रोत गट:</span>{' '}
-                    <strong className="text-stone-800 dark:text-stone-200">{inspectingStory.source_group}</strong>
+                    <strong className="text-stone-800 dark:text-stone-200">
+                      {inspectingStory.source_group}
+                    </strong>
                   </div>
                   <div>
                     <span className="text-stone-500">प्रकाशन तारीख:</span>{' '}
@@ -920,7 +1132,9 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                 {inspectingStory.original_title && (
                   <div className="mt-2 pt-2 border-t border-stone-200 dark:border-stone-700/80 text-xs">
                     <span className="text-stone-500">मूळ आलेले शीर्षक:</span>
-                    <p className="italic text-stone-600 dark:text-stone-400">{inspectingStory.original_title}</p>
+                    <p className="italic text-stone-600 dark:text-stone-400">
+                      {inspectingStory.original_title}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1040,9 +1254,13 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                       {inspectingStory.title}
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 mb-3">
-                      <span>लेखक: <strong>{inspectingStory.author || 'संपादकीय विभाग'}</strong></span>
+                      <span>
+                        लेखक: <strong>{inspectingStory.author || 'संपादकीय विभाग'}</strong>
+                      </span>
                       <span>•</span>
-                      <span>विभाग: <strong className="text-red-700">{inspectingStory.category}</strong></span>
+                      <span>
+                        विभाग: <strong className="text-red-700">{inspectingStory.category}</strong>
+                      </span>
                       {inspectingStory.tags && (
                         <>
                           <span>•</span>
@@ -1222,60 +1440,6 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
               >
                 होय, नाकारा (Reject)
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* 10. SESSION EDITORIAL KEY DIALOG */}
-      {/* ========================================================= */}
-      {isKeyDialogOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-lg max-w-md w-full p-5 shadow-2xl">
-            <h3 className="font-serif text-lg font-bold text-stone-900 dark:text-stone-100 mb-2 flex items-center gap-2">
-              <Key className="w-5 h-5 text-amber-600" />
-              संपादकीय सुरक्षा की (Editorial Access Key)
-            </h3>
-            <p className="text-xs text-stone-600 dark:text-stone-400 mb-3 leading-relaxed">
-              अंतर्गत विकास सुरक्षा स्तर: अनधिकृत व्यक्तींना बातम्या मंजूर किंवा प्रकाशित करता येऊ नयेत म्हणून सुरक्षा की वापरली जाते. ही की केवळ ब्राउझरच्या स्थानिक सत्रात (sessionStorage) सुरक्षित राहते.
-            </p>
-            <div className="mb-4">
-              <label className="block text-[11px] font-bold text-stone-600 dark:text-stone-400 mb-1">
-                सुरक्षा की प्रविष्ट करा:
-              </label>
-              <input
-                type="text"
-                value={editorialKeyInput}
-                onChange={(e) => setEditorialKeyInput(e.target.value)}
-                className="w-full p-2 text-xs bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded font-mono"
-              />
-              <p className="text-[10px] text-stone-400 mt-1">
-                डीफॉल्ट स्थानिक विकास की: <span className="font-mono text-stone-600 dark:text-stone-300">bahumol-editor-2026</span>
-              </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setEditorialKeyInput('bahumol-editor-2026')}
-                className="text-[11px] text-red-700 hover:underline cursor-pointer"
-              >
-                डीफॉल्ट वापरा
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsKeyDialogOpen(false)}
-                  className="px-3 py-1.5 border border-stone-300 dark:border-stone-700 rounded text-xs font-semibold cursor-pointer"
-                >
-                  रद्द करा
-                </button>
-                <button
-                  onClick={handleSaveKey}
-                  className="px-4 py-1.5 bg-stone-900 text-white dark:bg-white dark:text-stone-900 rounded text-xs font-bold cursor-pointer"
-                >
-                  जतन करा
-                </button>
-              </div>
             </div>
           </div>
         </div>

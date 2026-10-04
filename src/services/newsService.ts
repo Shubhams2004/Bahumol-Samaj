@@ -3,7 +3,7 @@
  * Centralized content abstraction layer for Bahumol Samaj Weekly Newspaper.
  * Encapsulates all data access (Edition -> Sections -> Articles).
  * Supports fetching live timeline data from Cloudflare D1 /api/news with seamless local mock fallback.
- * Includes full Editorial Dashboard API service methods.
+ * Includes production-safe Editorial Dashboard API service with HttpOnly session authentication.
  */
 
 import { Article, BreakingItem, Category, CategorySlug, WeeklyEdition } from '../types/news';
@@ -83,17 +83,9 @@ export interface EditorialUpdatePayload {
   status?: string;
 }
 
-const DEFAULT_DEV_EDITORIAL_KEY = 'bahumol-editor-2026';
-
-function getStoredEditorialKey(): string {
-  if (typeof window === 'undefined') return DEFAULT_DEV_EDITORIAL_KEY;
-  return sessionStorage.getItem('bahumol_editorial_session_key') || DEFAULT_DEV_EDITORIAL_KEY;
-}
-
-export function setStoredEditorialKey(key: string): void {
-  if (typeof window !== 'undefined') {
-    sessionStorage.setItem('bahumol_editorial_session_key', key.trim());
-  }
+export interface EditorialSessionState {
+  authenticated: boolean;
+  user?: { role: string; editorInChief: string };
 }
 
 // Convert D1 story row to frontend Article structure
@@ -252,12 +244,14 @@ export const newsService = {
   /**
    * Fetch timeline stories with pagination, category filter and source group filter
    */
-  async fetchTimelineStories(params: {
-    category?: string;
-    source_group?: string;
-    page?: number;
-    limit?: number;
-  } = {}): Promise<{ stories: TimelineStory[]; total: number; totalPages: number }> {
+  async fetchTimelineStories(
+    params: {
+      category?: string;
+      source_group?: string;
+      page?: number;
+      limit?: number;
+    } = {}
+  ): Promise<{ stories: TimelineStory[]; total: number; totalPages: number }> {
     try {
       const queryParams = new URLSearchParams();
       if (params.category) queryParams.set('category', params.category);
@@ -288,48 +282,87 @@ export const newsService = {
     return { stories: [], total: 0, totalPages: 1 };
   },
 
-  /**
-   * Trigger manual ingestion cycle for all sources or single source
-   */
-  async triggerManualIngestion(
-    sourceId?: string
-  ): Promise<{ success: boolean; message: string; summary?: unknown }> {
-    try {
-      const url = sourceId
-        ? `/api/admin/refresh?source_id=${encodeURIComponent(sourceId)}`
-        : '/api/admin/refresh';
+  // =============================================================
+  // PRODUCTION-SAFE EDITORIAL AUTHENTICATION METHODS
+  // (Uses HttpOnly Cookies and server-side D1 sessions)
+  // =============================================================
 
-      const key = getStoredEditorialKey();
-      const res = await fetch(url, {
+  /**
+   * Check if current browser session is authenticated
+   */
+  async checkEditorialSession(): Promise<EditorialSessionState> {
+    try {
+      const res = await fetch('/api/editorial/auth/session', {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = (await res.json()) as EditorialSessionState;
+        return json;
+      }
+    } catch (e) {
+      console.warn('[newsService] checkEditorialSession failed:', e);
+    }
+    return { authenticated: false };
+  },
+
+  /**
+   * Login with Secret Key
+   */
+  async loginEditorial(
+    secretKey: string
+  ): Promise<{ success: boolean; message: string; user?: unknown; error?: string; code?: string }> {
+    try {
+      const res = await fetch('/api/editorial/auth/login', {
         method: 'POST',
-        headers: {
-          'X-Editorial-Key': key,
-          'X-Admin-Key': key,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ key: secretKey }),
       });
 
-      const json = await res.json() as { success: boolean; message: string; summary?: unknown };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        user?: unknown;
+        error?: string;
+        code?: string;
+      };
+
+      if (!res.ok) {
+        return {
+          success: false,
+          message: json.error || 'लॉगिन अयशस्वी झाले (Authentication failed)',
+          code: json.code,
+        };
+      }
+
       return json;
     } catch (e) {
       return {
         success: false,
-        message: e instanceof Error ? e.message : 'संकलन अयशस्वी झाले (Ingestion request failed)',
+        message: e instanceof Error ? e.message : 'सर्व्हरशी संपर्क होऊ शकला नाही',
       };
     }
   },
 
-  // =============================================================
-  // EDITORIAL DASHBOARD METHODS
-  // =============================================================
-
-  getEditorialKey(): string {
-    return getStoredEditorialKey();
+  /**
+   * Logout and clear session
+   */
+  async logoutEditorial(): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await fetch('/api/editorial/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const json = (await res.json()) as { success: boolean; message: string };
+      return json;
+    } catch {
+      return { success: true, message: 'सत्र समाप्त झाले' };
+    }
   },
 
-  setEditorialKey(key: string): void {
-    setStoredEditorialKey(key);
-  },
+  // =============================================================
+  // PROTECTED EDITORIAL API METHODS (Requires Active Session)
+  // =============================================================
 
   /**
    * Fetch counts for all editorial tabs
@@ -346,12 +379,11 @@ export const newsService = {
     };
 
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch('/api/editorial/stats', {
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
       if (res.ok) {
-        const json = await res.json() as { success: boolean; stats: EditorialStats };
+        const json = (await res.json()) as { success: boolean; stats: EditorialStats };
         if (json.success && json.stats) {
           return json.stats;
         }
@@ -366,14 +398,16 @@ export const newsService = {
   /**
    * Fetch incoming stories (Section 1)
    */
-  async fetchEditorialIncoming(params: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    source_group?: string;
-    search?: string;
-    sort?: 'newest' | 'oldest';
-  } = {}): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
+  async fetchEditorialIncoming(
+    params: {
+      page?: number;
+      limit?: number;
+      category?: string;
+      source_group?: string;
+      search?: string;
+      sort?: 'newest' | 'oldest';
+    } = {}
+  ): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
     try {
       const queryParams = new URLSearchParams();
       if (params.page) queryParams.set('page', String(params.page));
@@ -383,13 +417,12 @@ export const newsService = {
       if (params.search) queryParams.set('search', params.search);
       if (params.sort) queryParams.set('sort', params.sort);
 
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/incoming?${queryParams.toString()}`, {
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
 
       if (res.ok) {
-        const json = await res.json() as {
+        const json = (await res.json()) as {
           success: boolean;
           total: number;
           totalPages: number;
@@ -413,15 +446,17 @@ export const newsService = {
   /**
    * Generic stories query by status
    */
-  async fetchEditorialStories(params: {
-    status?: string;
-    page?: number;
-    limit?: number;
-    category?: string;
-    source_group?: string;
-    search?: string;
-    sort?: 'newest' | 'oldest';
-  } = {}): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
+  async fetchEditorialStories(
+    params: {
+      status?: string;
+      page?: number;
+      limit?: number;
+      category?: string;
+      source_group?: string;
+      search?: string;
+      sort?: 'newest' | 'oldest';
+    } = {}
+  ): Promise<{ stories: EditorialStory[]; total: number; totalPages: number }> {
     try {
       const queryParams = new URLSearchParams();
       if (params.status) queryParams.set('status', params.status);
@@ -432,13 +467,12 @@ export const newsService = {
       if (params.search) queryParams.set('search', params.search);
       if (params.sort) queryParams.set('sort', params.sort);
 
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/stories?${queryParams.toString()}`, {
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
 
       if (res.ok) {
-        const json = await res.json() as {
+        const json = (await res.json()) as {
           success: boolean;
           total: number;
           totalPages: number;
@@ -464,12 +498,11 @@ export const newsService = {
    */
   async fetchEditorialStoryById(id: string): Promise<EditorialStory | null> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}`, {
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
       if (res.ok) {
-        const json = await res.json() as { success: boolean; data: EditorialStory };
+        const json = (await res.json()) as { success: boolean; data: EditorialStory };
         if (json.success && json.data) {
           return json.data;
         }
@@ -488,17 +521,19 @@ export const newsService = {
     payload: EditorialUpdatePayload
   ): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}`, {
         method: 'PATCH',
-        headers: {
-          'X-Editorial-Key': key,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       if (res.ok && json.success) {
         return { success: true, message: json.message || 'बदल जतन झाले', data: json.data };
       }
@@ -516,12 +551,16 @@ export const newsService = {
    */
   async reviewStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/review`, {
         method: 'POST',
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
@@ -533,12 +572,16 @@ export const newsService = {
    */
   async approveStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
@@ -553,16 +596,18 @@ export const newsService = {
     reason?: string
   ): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/reject`, {
         method: 'POST',
-        headers: {
-          'X-Editorial-Key': key,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ reason }),
       });
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
@@ -574,12 +619,16 @@ export const newsService = {
    */
   async publishStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/publish`, {
         method: 'POST',
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
@@ -591,15 +640,48 @@ export const newsService = {
    */
   async archiveStory(id: string): Promise<{ success: boolean; message: string; data?: EditorialStory }> {
     try {
-      const key = getStoredEditorialKey();
       const res = await fetch(`/api/editorial/story/${encodeURIComponent(id)}/archive`, {
         method: 'POST',
-        headers: { 'X-Editorial-Key': key },
+        credentials: 'include',
       });
-      const json = await res.json() as { success: boolean; message: string; data?: EditorialStory; error?: string };
+      const json = (await res.json()) as {
+        success: boolean;
+        message: string;
+        data?: EditorialStory;
+        error?: string;
+      };
       return { success: res.ok && json.success, message: json.message || json.error || '', data: json.data };
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : 'त्रुटी आली' };
+    }
+  },
+
+  /**
+   * Trigger manual ingestion cycle for all sources or single source
+   */
+  async triggerManualIngestion(
+    sourceId?: string
+  ): Promise<{ success: boolean; message: string; summary?: unknown }> {
+    try {
+      const url = sourceId
+        ? `/api/admin/refresh?source_id=${encodeURIComponent(sourceId)}`
+        : '/api/admin/refresh';
+
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = (await res.json()) as { success: boolean; message: string; summary?: unknown };
+      return json;
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : 'संकलन अयशस्वी झाले (Ingestion request failed)',
+      };
     }
   },
 };

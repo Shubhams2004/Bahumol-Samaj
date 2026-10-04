@@ -81,6 +81,17 @@ export interface EditorialCounts {
   archived: number;
 }
 
+export interface EditorialSessionRow {
+  id: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface EditorialAuthUser {
+  role: 'editor';
+  editorInChief: string;
+}
+
 export interface ParsedFeedItem {
   guid?: string;
   title: string;
