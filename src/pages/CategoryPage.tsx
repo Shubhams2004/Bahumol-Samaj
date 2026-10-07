@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getCategoryBySlug } from '../data/categories';
 import { getArticlesByCategory, ARTICLES } from '../data/newsArticles';
+import { newsService } from '../services/newsService';
+import { Article } from '../types/news';
 import { getRelativeTimeMarathi, toMarathiDigits } from '../utils/dateFormatter';
 import { ImageWithFallback } from '../components/common/ImageWithFallback';
 import { ChevronRight, MapPin, Clock } from 'lucide-react';
@@ -38,7 +40,35 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({
     );
   }
 
-  const rawArticles = getArticlesByCategory(category.slug);
+  const [liveCatArticles, setLiveCatArticles] = useState<Article[] | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (category) {
+      newsService
+        .fetchPublishedFromApi(category.slug, 30)
+        .then((articles) => {
+          if (isMounted) {
+            if (articles && articles.length > 0) {
+              setLiveCatArticles(articles);
+            } else {
+              setLiveCatArticles(null);
+            }
+          }
+        })
+        .catch(() => {
+          if (isMounted) setLiveCatArticles(null);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [category?.slug]);
+
+  const rawArticles =
+    liveCatArticles && liveCatArticles.length > 0
+      ? liveCatArticles
+      : getArticlesByCategory(category.slug);
   const displayArticles = rawArticles;
 
   const sortedArticles = [...displayArticles].sort((a, b) => {

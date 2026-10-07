@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, navigateTo } from './utils/router';
 import { useReadingPreferences } from './utils/readingPreferences';
 import { getArticleBySlug, getArticleById } from './data/newsArticles';
+import { newsService } from './services/newsService';
+import { Article } from './types/news';
 import { TopHeader } from './components/common/TopHeader';
 import { BreakingTicker } from './components/common/BreakingTicker';
 import { Footer } from './components/common/Footer';
@@ -30,6 +32,34 @@ export default function App() {
   } = useReadingPreferences();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [liveArticleDetail, setLiveArticleDetail] = useState<Article | null>(null);
+
+  useEffect(() => {
+    if (route.page === 'article') {
+      const targetSlugOrId = route.params.slug || route.params.id || '';
+      const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
+      if (local) {
+        setLiveArticleDetail(local);
+      } else if (targetSlugOrId) {
+        newsService
+          .getArticleBySlug(targetSlugOrId)
+          .then((fetched) => {
+            if (fetched) {
+              setLiveArticleDetail(fetched);
+            } else {
+              newsService.getArticleById(targetSlugOrId).then((byId) => {
+                setLiveArticleDetail(byId || null);
+              });
+            }
+          })
+          .catch(() => {
+            setLiveArticleDetail(null);
+          });
+      }
+    } else {
+      setLiveArticleDetail(null);
+    }
+  }, [route.page, route.params.slug, route.params.id]);
 
   // Slug-based article navigation
   const handleSelectArticle = (slugOrId: string) => {
@@ -111,7 +141,10 @@ export default function App() {
 
       case 'article': {
         const targetSlugOrId = route.params.slug || route.params.id || '';
-        const article = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
+        const article =
+          getArticleBySlug(targetSlugOrId) ||
+          getArticleById(targetSlugOrId) ||
+          liveArticleDetail;
         if (!article) {
           return (
             <HomePage

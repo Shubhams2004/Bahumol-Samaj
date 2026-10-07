@@ -95,17 +95,19 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
   const id = String(row.id || '');
   const title = String(row.title || '');
   const description = String(row.description || '');
+  const rawGuid = row.source_guid ? String(row.source_guid) : '';
+  const slug = rawGuid && !rawGuid.includes('/') && !rawGuid.includes(' ') ? rawGuid : id;
 
   return {
     id,
-    slug: (row.source_guid as string) || id,
+    slug,
     title,
     excerpt: description,
     category,
     image:
       (row.image_url as string) ||
       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
-    location: 'महाराष्ट्र',
+    location: (row.source_name as string) || 'महाराष्ट्र',
     publishedAt,
     readTimeMinutes: 3,
     viewsCount: 1200,
@@ -204,9 +206,11 @@ export const newsService = {
   },
 
   /**
-   * Fetch live published stories from Cloudflare D1 API with graceful fallback to mock data
+   * Fetch live published stories from Cloudflare D1 API.
+   * Returns empty array if API returns no published stories or request fails,
+   * allowing the caller to use static ARTICLES data as fallback.
    */
-  async fetchPublishedFromApi(category?: string, limit: number = 10): Promise<Article[]> {
+  async fetchPublishedFromApi(category?: string, limit: number = 50): Promise<Article[]> {
     try {
       const endpoint = category
         ? `/api/news/category/${encodeURIComponent(category)}?limit=${limit}`
@@ -221,7 +225,7 @@ export const newsService = {
       }
     } catch {}
 
-    return category ? fetchArticlesByCategory(category) : fetchLatestArticles(limit);
+    return [];
   },
 
   /**
