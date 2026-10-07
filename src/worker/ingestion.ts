@@ -116,10 +116,10 @@ export async function ingestFromSource(
       await db
         .prepare(`
           INSERT INTO stories (
-            id, source_id, source_url, source_guid, title, description,
+            id, source_id, source_url, source_guid, title, description, content,
             image_url, author, published_at, category, language,
             status, content_hash, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'incoming', ?, datetime('now'), datetime('now'))
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'incoming', ?, datetime('now'), datetime('now'))
         `)
         .bind(
           storyId,
@@ -128,6 +128,7 @@ export async function ingestFromSource(
           item.guid || null,
           item.title,
           item.description || null,
+          item.content || item.description || null,
           item.imageUrl || null,
           item.author || source.name,
           item.publishedAt,

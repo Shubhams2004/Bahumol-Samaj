@@ -127,6 +127,7 @@ export const StoryWorkspace: React.FC<StoryWorkspaceProps> = ({
   const [formData, setFormData] = useState<EditorialUpdatePayload>({
     title: story.title || '',
     description: story.description || '',
+    content: story.content || story.description || '',
     category: story.category || 'महाराष्ट्र',
     image_url: story.image_url || '',
     author: story.author || 'विशेष वार्ताहर / बहुमोल न्यूज डेस्क',
@@ -159,6 +160,7 @@ export const StoryWorkspace: React.FC<StoryWorkspaceProps> = ({
     setFormData({
       title: story.title || '',
       description: story.description || '',
+      content: story.content || story.description || '',
       category: story.category || 'महाराष्ट्र',
       image_url: story.image_url || '',
       author: story.author || 'विशेष वार्ताहर / बहुमोल न्यूज डेस्क',
@@ -185,10 +187,12 @@ export const StoryWorkspace: React.FC<StoryWorkspaceProps> = ({
   const handleCopyWireToEditor = () => {
     const origTitle = currentStory.original_title || currentStory.title;
     const origDesc = currentStory.original_description || currentStory.description || '';
+    const origContent = currentStory.content || origDesc;
     setFormData((prev) => ({
       ...prev,
       title: origTitle,
       description: origDesc,
+      content: origContent,
     }));
     setIsDirty(true);
     showToast('मूळ मजकूर संपादकीय फॉर्ममध्ये कॉपी केला');
@@ -1059,24 +1063,45 @@ const EditorialForm: React.FC<EditorialFormProps> = ({
         </p>
       </div>
 
-      {/* Field 2: Article / Summary Text */}
+      {/* Field 2: Short Summary / Excerpt */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs font-bold text-stone-700 dark:text-stone-300">
-          <label htmlFor="ed-desc">संपादकीय बातमी / सारांश मजकूर (Article Copy / Summary) *</label>
+          <label htmlFor="ed-desc">संपादकीय सारांश / प्रस्तावना (Summary / Excerpt)</label>
           <span className="text-[11px] font-mono text-stone-500">
-            {wordCount} शब्द
+            {(formData.description || '').length} वर्ण
           </span>
         </div>
         <textarea
           id="ed-desc"
-          rows={7}
+          rows={3}
           value={formData.description || ''}
           onChange={(e) => onFieldChange('description', e.target.value)}
-          placeholder="बातम्याचा संपूर्ण तपशील किंवा वाचनीय सारांश येथे लिहा..."
+          placeholder="बातम्याचा संक्षिप्त सारांश किंवा ठळक माहिती येथे लिहा..."
           className="w-full p-3 text-sm bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 leading-relaxed font-sans focus:ring-2 focus:ring-red-600 focus:border-red-600 focus:outline-hidden"
         />
         <p className="text-[11px] text-stone-500 dark:text-stone-400">
-          पॅराग्राफ वेगळे करण्यासाठी Enter दाबा. वृत्तपत्राच्या पानावर हे परिच्छेद सुवाच्य पद्धतीने दिसतील.
+          हा सारांश मुख्यपृष्ठावर आणि बातमीच्या सुरुवातीस ठळक अक्षरात दिसेल.
+        </p>
+      </div>
+
+      {/* Field 3: Full Article Content / Body */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs font-bold text-stone-700 dark:text-stone-300">
+          <label htmlFor="ed-content">संपूर्ण बातमी मजकूर (Full Article Content / Body) *</label>
+          <span className="text-[11px] font-mono text-stone-500">
+            {(formData.content || formData.description || '').trim().split(/\s+/).filter(Boolean).length} शब्द
+          </span>
+        </div>
+        <textarea
+          id="ed-content"
+          rows={9}
+          value={formData.content !== undefined ? formData.content : formData.description || ''}
+          onChange={(e) => onFieldChange('content', e.target.value)}
+          placeholder="बातम्याचा सविस्तर मजकूर आणि सर्व परिच्छेद येथे लिहा..."
+          className="w-full p-3 text-sm bg-stone-50 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 leading-relaxed font-sans focus:ring-2 focus:ring-red-600 focus:border-red-600 focus:outline-hidden"
+        />
+        <p className="text-[11px] text-stone-500 dark:text-stone-400">
+          परिच्छेद वेगळे करण्यासाठी Enter दाबा. वृत्तपत्राच्या वाचन पानावर हे सर्व परिच्छेद सुवाच्य पद्धतीने दिसतील.
         </p>
       </div>
 

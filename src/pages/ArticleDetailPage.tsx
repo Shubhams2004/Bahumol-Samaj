@@ -322,10 +322,12 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             </div>
           </div>
 
-          {/* Article Excerpt */}
-          <div className="text-base sm:text-lg font-medium text-stone-800 dark:text-stone-200 font-serif leading-relaxed mb-6 bg-stone-50 dark:bg-stone-800/50 p-4 rounded border-l-4 border-red-700 dark:border-red-500">
-            {article.excerpt}
-          </div>
+          {/* Article Excerpt / Lead Summary */}
+          {article.excerpt && (article.content.length > 1 || article.excerpt !== article.content[0]) && (
+            <div className="text-base sm:text-lg font-medium text-stone-800 dark:text-stone-200 font-serif leading-relaxed mb-6 bg-stone-50 dark:bg-stone-800/50 p-4 rounded border-l-4 border-red-700 dark:border-red-500">
+              {article.excerpt}
+            </div>
+          )}
 
           {/* Article Body Paragraphs */}
           <div className={`space-y-5 text-stone-800 dark:text-stone-200 font-sans font-normal ${fontSizeClass}`}>

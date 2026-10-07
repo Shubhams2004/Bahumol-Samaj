@@ -721,6 +721,12 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
       const newTitle = body.title !== undefined ? body.title.trim() : existing.title;
       const newDesc = body.description !== undefined ? body.description.trim() : existing.description;
+      const newContent =
+        body.content !== undefined
+          ? body.content.trim()
+          : existing.content !== undefined && existing.content !== null
+          ? existing.content
+          : existing.description;
       const newCategory = body.category !== undefined ? body.category.trim() : existing.category;
       const newImageUrl = body.image_url !== undefined ? body.image_url.trim() : existing.image_url;
       const newAuthor = body.author !== undefined ? body.author.trim() : existing.author;
@@ -736,6 +742,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
         SET
           title = ?,
           description = ?,
+          content = ?,
           category = ?,
           image_url = ?,
           author = ?,
@@ -751,6 +758,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
         .bind(
           newTitle,
           newDesc,
+          newContent,
           newCategory,
           newImageUrl,
           newAuthor,
@@ -1056,10 +1064,10 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
       await env.DB.prepare(`
         INSERT INTO stories (
-          id, source_id, source_url, source_guid, title, description,
+          id, source_id, source_url, source_guid, title, description, content,
           image_url, author, published_at, category, language,
           status, content_hash, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mr', ?, ?, datetime('now'), datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'mr', ?, ?, datetime('now'), datetime('now'))
       `)
         .bind(
           storyId,
@@ -1068,6 +1076,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
           body.source_guid || sourceUrl,
           title,
           body.description || 'महाराष्ट्रातील ग्रामीण विकासाला गती देण्यासाठी राज्य शासनाची महत्त्वपूर्ण घोषणा.',
+          body.content || body.description || null,
           body.image_url ||
             'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
           body.author || 'मुख्य संपादक दिलीप सोनाळे विशेष ब्युरो',

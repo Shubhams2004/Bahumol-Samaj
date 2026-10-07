@@ -43,6 +43,7 @@ export interface TimelineStory {
   source_guid: string | null;
   title: string;
   description: string | null;
+  content?: string | null;
   image_url: string | null;
   author: string | null;
   published_at: string;
@@ -75,6 +76,7 @@ export interface EditorialStats {
 export interface EditorialUpdatePayload {
   title?: string;
   description?: string;
+  content?: string;
   category?: string;
   image_url?: string;
   author?: string;
@@ -97,6 +99,27 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
   const description = String(row.description || '');
   const rawGuid = row.source_guid ? String(row.source_guid) : '';
   const slug = rawGuid && !rawGuid.includes('/') && !rawGuid.includes(' ') ? rawGuid : id;
+  const rawContent = (row.content as string) || '';
+
+  // Extract full article paragraphs: D1 full content/body is primary, description only fallback
+  let contentParagraphs: string[] = [];
+  if (rawContent && rawContent.trim()) {
+    contentParagraphs = rawContent
+      .split(/\n\s*\n|\r\n\s*\r\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (contentParagraphs.length === 0) {
+      contentParagraphs = [rawContent.trim()];
+    }
+  } else if (description && description.trim()) {
+    contentParagraphs = [description.trim()];
+  } else {
+    contentParagraphs = [title];
+  }
+
+  // Calculate realistic read time based on Marathi word count
+  const totalWords = contentParagraphs.join(' ').split(/\s+/).filter(Boolean).length;
+  const readTimeMinutes = Math.max(1, Math.ceil(totalWords / 130));
 
   return {
     id,
@@ -109,7 +132,7 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
       'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1000&q=80',
     location: (row.source_name as string) || 'महाराष्ट्र',
     publishedAt,
-    readTimeMinutes: 3,
+    readTimeMinutes,
     viewsCount: 1200,
     sharesCount: 150,
     tags: [category, 'साप्ताहिक'],
@@ -118,7 +141,7 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
       role: 'वार्ताहर',
       location: 'महाराष्ट्र',
     },
-    content: description ? [description] : [title],
+    content: contentParagraphs,
   };
 }
 
@@ -136,9 +159,7 @@ export const newsService = {
   },
 
   async getArticleBySlug(slug: string): Promise<Article | undefined> {
-    const local = fetchArticleBySlug(slug);
-    if (local) return local;
-
+    // 1. Prioritize dynamic published article from Worker API
     try {
       const res = await fetch(`/api/news/${encodeURIComponent(slug)}`);
       if (res.ok) {
@@ -149,13 +170,13 @@ export const newsService = {
       }
     } catch {}
 
-    return undefined;
+    // 2. Fallback to existing static article data
+    const local = fetchArticleBySlug(slug) || fetchArticleById(slug);
+    return local;
   },
 
   async getArticleById(id: string): Promise<Article | undefined> {
-    const local = fetchArticleById(id);
-    if (local) return local;
-
+    // 1. Prioritize dynamic published article from Worker API
     try {
       const res = await fetch(`/api/news/${encodeURIComponent(id)}`);
       if (res.ok) {
@@ -166,7 +187,9 @@ export const newsService = {
       }
     } catch {}
 
-    return undefined;
+    // 2. Fallback to existing static article data
+    const local = fetchArticleById(id) || fetchArticleBySlug(id);
+    return local;
   },
 
   async getArticlesByCategory(category: CategorySlug | string): Promise<Article[]> {

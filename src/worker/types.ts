@@ -43,6 +43,7 @@ export interface StoryRow {
   source_guid: string | null;
   title: string;
   description: string | null;
+  content?: string | null;
   image_url: string | null;
   author: string | null;
   published_at: string;
@@ -64,6 +65,7 @@ export interface StoryRow {
 export interface EditorialUpdatePayload {
   title?: string;
   description?: string;
+  content?: string;
   category?: string;
   image_url?: string;
   author?: string;
@@ -97,6 +99,7 @@ export interface ParsedFeedItem {
   title: string;
   link: string;
   description?: string;
+  content?: string;
   imageUrl?: string;
   author?: string;
   publishedAt: string;

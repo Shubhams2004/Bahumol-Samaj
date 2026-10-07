@@ -118,9 +118,11 @@ export function parseFeedXml(xmlContent: string): ParsedFeedItem[] {
       // Guid / ID
       const guid = getTagContent(entryXml, 'id') || link;
 
-      // Summary or content
-      const rawDesc = getTagContent(entryXml, 'summary') || getTagContent(entryXml, 'content') || '';
-      const description = stripHtml(rawDesc).slice(0, 500);
+      // Summary and content
+      const rawSummary = getTagContent(entryXml, 'summary') || '';
+      const rawContent = getTagContent(entryXml, 'content') || rawSummary;
+      const cleanContent = stripHtml(rawContent);
+      const description = stripHtml(rawSummary || rawContent).slice(0, 500);
 
       // Published / Updated
       const dateStr = getTagContent(entryXml, 'published') || getTagContent(entryXml, 'updated');
@@ -146,6 +148,7 @@ export function parseFeedXml(xmlContent: string): ParsedFeedItem[] {
           title,
           link,
           description: description || undefined,
+          content: cleanContent || undefined,
           imageUrl,
           author,
           publishedAt,
@@ -174,8 +177,10 @@ export function parseFeedXml(xmlContent: string): ParsedFeedItem[] {
       const guid = getTagContent(itemXml, 'guid') || link;
 
       // Description / Content
-      const rawDesc = getTagContent(itemXml, 'content:encoded') || getTagContent(itemXml, 'description') || '';
-      const description = stripHtml(rawDesc).slice(0, 500);
+      const rawEncoded = getTagContent(itemXml, 'content:encoded') || '';
+      const rawDesc = getTagContent(itemXml, 'description') || '';
+      const cleanContent = stripHtml(rawEncoded || rawDesc);
+      const description = stripHtml(rawDesc || rawEncoded).slice(0, 500);
 
       // Published date
       const dateStr = getTagContent(itemXml, 'pubDate') || getTagContent(itemXml, 'dc:date');
@@ -196,6 +201,7 @@ export function parseFeedXml(xmlContent: string): ParsedFeedItem[] {
           title,
           link,
           description: description || undefined,
+          content: cleanContent || undefined,
           imageUrl,
           author: author ? stripHtml(author) : undefined,
           publishedAt,

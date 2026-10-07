@@ -33,31 +33,57 @@ export default function App() {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [liveArticleDetail, setLiveArticleDetail] = useState<Article | null>(null);
+  const [loadingArticle, setLoadingArticle] = useState<boolean>(false);
 
   useEffect(() => {
     if (route.page === 'article') {
       const targetSlugOrId = route.params.slug || route.params.id || '';
-      const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
-      if (local) {
-        setLiveArticleDetail(local);
-      } else if (targetSlugOrId) {
-        newsService
-          .getArticleBySlug(targetSlugOrId)
-          .then((fetched) => {
-            if (fetched) {
-              setLiveArticleDetail(fetched);
-            } else {
-              newsService.getArticleById(targetSlugOrId).then((byId) => {
-                setLiveArticleDetail(byId || null);
-              });
-            }
-          })
-          .catch(() => {
-            setLiveArticleDetail(null);
-          });
+      if (!targetSlugOrId) {
+        setLiveArticleDetail(null);
+        setLoadingArticle(false);
+        return;
       }
+
+      setLoadingArticle(true);
+      let isMounted = true;
+
+      // 1. Dynamic API fetch first (by ID or slug)
+      newsService
+        .getArticleById(targetSlugOrId)
+        .then((article) => {
+          if (!isMounted) return;
+          if (article) {
+            setLiveArticleDetail(article);
+            setLoadingArticle(false);
+          } else {
+            return newsService.getArticleBySlug(targetSlugOrId);
+          }
+        })
+        .then((bySlugArticle) => {
+          if (!isMounted) return;
+          if (bySlugArticle) {
+            setLiveArticleDetail(bySlugArticle);
+            setLoadingArticle(false);
+          } else {
+            // 2. Fallback to static articles
+            const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
+            setLiveArticleDetail(local || null);
+            setLoadingArticle(false);
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
+          setLiveArticleDetail(local || null);
+          setLoadingArticle(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
     } else {
       setLiveArticleDetail(null);
+      setLoadingArticle(false);
     }
   }, [route.page, route.params.slug, route.params.id]);
 
@@ -142,10 +168,19 @@ export default function App() {
       case 'article': {
         const targetSlugOrId = route.params.slug || route.params.id || '';
         const article =
+          liveArticleDetail ||
           getArticleBySlug(targetSlugOrId) ||
-          getArticleById(targetSlugOrId) ||
-          liveArticleDetail;
+          getArticleById(targetSlugOrId);
+
         if (!article) {
+          if (loadingArticle) {
+            return (
+              <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-stone-500 font-sans">
+                <div className="w-8 h-8 border-3 border-red-700 border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-sm font-medium">बातमी उघडत आहे...</p>
+              </div>
+            );
+          }
           return (
             <HomePage
               onSelectArticle={handleSelectArticle}

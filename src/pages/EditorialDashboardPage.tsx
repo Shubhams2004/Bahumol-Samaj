@@ -283,6 +283,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
     setEditForm({
       title: story.title,
       description: story.description || '',
+      content: story.content || story.description || '',
       category: story.category,
       image_url: story.image_url || '',
       author: story.author || '',
@@ -1210,10 +1211,23 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                       संपादकीय सारांश / वर्णन (Description / Excerpt)
                     </label>
                     <textarea
-                      rows={4}
+                      rows={3}
                       value={editForm.description || ''}
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                       className="w-full p-2.5 text-xs sm:text-sm bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded leading-relaxed focus:ring-1 focus:ring-red-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      संपूर्ण बातमी मजकूर (Full Article Content / Body)
+                    </label>
+                    <textarea
+                      rows={7}
+                      placeholder="सविस्तर बातमी मजकूर आणि परिच्छेद..."
+                      value={editForm.content !== undefined ? editForm.content : editForm.description || ''}
+                      onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                      className="w-full p-2.5 text-xs sm:text-sm bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded leading-relaxed focus:ring-1 focus:ring-red-600 font-sans"
                     />
                   </div>
 
