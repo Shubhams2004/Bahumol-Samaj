@@ -316,8 +316,9 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
   // Strictly returns published stories. 404 for anything else.
   // -------------------------------------------------------------
   if (method === 'GET' && path.startsWith('/api/news/')) {
-    const storyId = decodeURIComponent(path.replace('/api/news/', ''));
-    if (!storyId || storyId.includes('/')) {
+    const rawParam = path.slice('/api/news/'.length);
+    const storyId = decodeURIComponent(rawParam).trim();
+    if (!storyId) {
       return jsonResponse({ error: 'बातमी ओळख क्रमांक (ID) आवश्यक आहे' }, 400);
     }
 
@@ -728,6 +729,10 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
           ? existing.content
           : existing.description;
       const newCategory = body.category !== undefined ? body.category.trim() : existing.category;
+      const newLanguage =
+        body.language !== undefined && ['mr', 'hi', 'en'].includes(body.language.trim().toLowerCase())
+          ? body.language.trim().toLowerCase()
+          : existing.language || 'mr';
       const newImageUrl = body.image_url !== undefined ? body.image_url.trim() : existing.image_url;
       const newAuthor = body.author !== undefined ? body.author.trim() : existing.author;
       const newTags = body.tags !== undefined ? body.tags.trim() : existing.tags || '';
@@ -744,6 +749,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
           description = ?,
           content = ?,
           category = ?,
+          language = ?,
           image_url = ?,
           author = ?,
           tags = ?,
@@ -760,6 +766,7 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
           newDesc,
           newContent,
           newCategory,
+          newLanguage,
           newImageUrl,
           newAuthor,
           newTags,

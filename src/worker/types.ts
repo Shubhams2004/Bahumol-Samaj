@@ -67,6 +67,7 @@ export interface EditorialUpdatePayload {
   description?: string;
   content?: string;
   category?: string;
+  language?: 'mr' | 'hi' | 'en' | string;
   image_url?: string;
   author?: string;
   tags?: string;

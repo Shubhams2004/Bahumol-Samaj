@@ -205,5 +205,53 @@ export async function runIngestionPipeline(
     summary.duplicatesSkipped += res.duplicateCount;
   }
 
+  // Apply safe retention rules to prevent D1 database from accumulating unreviewed noise
+  // Preserves ALL published, approved, and review stories forever
+  await applyRetentionRules(env.DB);
+
   return summary;
+}
+
+/**
+ * Safely archive and prune old unreviewed incoming stories to keep D1 healthy.
+ * Absolute Safety Invariants:
+ * 1. NEVER touches or deletes published stories.
+ * 2. NEVER touches or deletes approved stories.
+ * 3. NEVER touches or deletes review stories.
+ * 4. NEVER touches stories with is_edited = 1 (editorial input preserved).
+ */
+export async function applyRetentionRules(
+  db: Env['DB']
+): Promise<{ archivedCount: number; prunedCount: number }> {
+  let archivedCount = 0;
+  let prunedCount = 0;
+
+  try {
+    // 1. Move stale unreviewed incoming items older than 30 days to 'archived'
+    const archiveRes = await db
+      .prepare(`
+        UPDATE stories
+        SET status = 'archived', updated_at = datetime('now')
+        WHERE status = 'incoming'
+          AND (is_edited IS NULL OR is_edited = 0)
+          AND created_at < datetime('now', '-30 days')
+      `)
+      .run();
+    archivedCount = archiveRes.meta?.changes || 0;
+
+    // 2. Prune old unedited archived noise older than 60 days
+    const pruneRes = await db
+      .prepare(`
+        DELETE FROM stories
+        WHERE status = 'archived'
+          AND (is_edited IS NULL OR is_edited = 0)
+          AND updated_at < datetime('now', '-60 days')
+      `)
+      .run();
+    prunedCount = pruneRes.meta?.changes || 0;
+  } catch (err) {
+    console.warn('[Bahumol DB Retention] Safe retention cleanup note:', err);
+  }
+
+  return { archivedCount, prunedCount };
 }

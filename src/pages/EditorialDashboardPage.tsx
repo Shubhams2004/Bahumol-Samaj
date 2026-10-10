@@ -285,6 +285,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
       description: story.description || '',
       content: story.content || story.description || '',
       category: story.category,
+      language: story.language || 'mr',
       image_url: story.image_url || '',
       author: story.author || '',
       tags: story.tags || '',
@@ -1231,7 +1232,7 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
                         विभाग / वर्गवारी (Category)
@@ -1251,7 +1252,22 @@ export const EditorialDashboardPage: React.FC<EditorialDashboardPageProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
-                        लेखक / वार्ताहर (Author Attribution)
+                        भाषा (Language)
+                      </label>
+                      <select
+                        value={editForm.language || 'mr'}
+                        onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
+                        className="w-full p-2 text-xs bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded"
+                      >
+                        <option value="mr">मराठी (mr)</option>
+                        <option value="hi">हिंदी (hi)</option>
+                        <option value="en">English (en)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                        लेखक / वार्ताहर (Author)
                       </label>
                       <input
                         type="text"

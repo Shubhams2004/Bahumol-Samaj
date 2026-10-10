@@ -6,7 +6,7 @@
  * Includes production-safe Editorial Dashboard API service with HttpOnly session authentication.
  */
 
-import { Article, BreakingItem, Category, CategorySlug, WeeklyEdition } from '../types/news';
+import { Article, BreakingItem, Category, CategorySlug, LanguageCode, WeeklyEdition } from '../types/news';
 import {
   ARTICLES,
   getArticleBySlug as fetchArticleBySlug,
@@ -78,6 +78,7 @@ export interface EditorialUpdatePayload {
   description?: string;
   content?: string;
   category?: string;
+  language?: 'mr' | 'hi' | 'en' | string;
   image_url?: string;
   author?: string;
   tags?: string;
@@ -100,6 +101,8 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
   const rawGuid = row.source_guid ? String(row.source_guid) : '';
   const slug = rawGuid && !rawGuid.includes('/') && !rawGuid.includes(' ') ? rawGuid : id;
   const rawContent = (row.content as string) || '';
+  const rawLang = String(row.language || 'mr').toLowerCase();
+  const language: LanguageCode = rawLang === 'hi' ? 'hi' : rawLang === 'en' ? 'en' : 'mr';
 
   // Extract full article paragraphs: D1 full content/body is primary, description only fallback
   let contentParagraphs: string[] = [];
@@ -136,6 +139,7 @@ function mapD1StoryToArticle(row: Record<string, unknown>): Article {
     viewsCount: 1200,
     sharesCount: 150,
     tags: [category, 'साप्ताहिक'],
+    language,
     author: {
       name: (row.author as string) || (row.source_name as string) || 'विशेष वार्ताहर',
       role: 'वार्ताहर',
@@ -159,9 +163,12 @@ export const newsService = {
   },
 
   async getArticleBySlug(slug: string): Promise<Article | undefined> {
+    const cleanSlug = String(slug || '').trim();
+    if (!cleanSlug) return undefined;
+
     // 1. Prioritize dynamic published article from Worker API
     try {
-      const res = await fetch(`/api/news/${encodeURIComponent(slug)}`);
+      const res = await fetch(`/api/news/${encodeURIComponent(cleanSlug)}`);
       if (res.ok) {
         const json = (await res.json()) as { success: boolean; data: Record<string, unknown> };
         if (json.success && json.data) {
@@ -170,15 +177,18 @@ export const newsService = {
       }
     } catch {}
 
-    // 2. Fallback to existing static article data
-    const local = fetchArticleBySlug(slug) || fetchArticleById(slug);
+    // 2. Fallback to existing static article data only if matching ID/slug exists
+    const local = fetchArticleBySlug(cleanSlug) || fetchArticleById(cleanSlug);
     return local;
   },
 
   async getArticleById(id: string): Promise<Article | undefined> {
+    const cleanId = String(id || '').trim();
+    if (!cleanId) return undefined;
+
     // 1. Prioritize dynamic published article from Worker API
     try {
-      const res = await fetch(`/api/news/${encodeURIComponent(id)}`);
+      const res = await fetch(`/api/news/${encodeURIComponent(cleanId)}`);
       if (res.ok) {
         const json = (await res.json()) as { success: boolean; data: Record<string, unknown> };
         if (json.success && json.data) {
@@ -187,8 +197,8 @@ export const newsService = {
       }
     } catch {}
 
-    // 2. Fallback to existing static article data
-    const local = fetchArticleById(id) || fetchArticleBySlug(id);
+    // 2. Fallback to existing static article data only if matching ID/slug exists
+    const local = fetchArticleById(cleanId) || fetchArticleBySlug(cleanId);
     return local;
   },
 

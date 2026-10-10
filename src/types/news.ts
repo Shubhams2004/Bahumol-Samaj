@@ -10,6 +10,8 @@ export type CategorySlug =
   | 'entertainment'
   | 'editorial';
 
+export type LanguageCode = 'mr' | 'hi' | 'en';
+
 export interface Author {
   name: string;
   role: string;
@@ -44,6 +46,7 @@ export interface Article {
   tags: string[];
   quotes?: Quote[];
   content: string[]; // Array of authentic Marathi editorial paragraphs
+  language?: LanguageCode;
 }
 
 export interface Category {

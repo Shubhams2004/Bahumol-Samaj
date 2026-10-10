@@ -151,13 +151,14 @@ class MockPreparedStatement {
 
     // UPDATE stories with full editorial fields (PATCH)
     if (normalized.includes('UPDATE STORIES SET TITLE = ?')) {
-      const [title, desc, content, cat, img, author, tags, notes, origTitle, origDesc, status, id] = this.params as string[];
+      const [title, desc, content, cat, lang, img, author, tags, notes, origTitle, origDesc, status, id] = this.params as string[];
       const story = this.db.stories.find((s) => s.id === id);
       if (story) {
         story.title = title;
         story.description = desc;
         story.content = content;
         story.category = cat;
+        story.language = lang;
         story.image_url = img;
         story.author = author;
         story.tags = tags;

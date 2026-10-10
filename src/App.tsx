@@ -18,6 +18,7 @@ import { EpaperPage } from './pages/EpaperPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { NewsTimelinePage } from './pages/NewsTimelinePage';
 import { EditorialDashboardPage } from './pages/EditorialDashboardPage';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 
 export default function App() {
   const { route } = useRouter();
@@ -34,6 +35,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [liveArticleDetail, setLiveArticleDetail] = useState<Article | null>(null);
   const [loadingArticle, setLoadingArticle] = useState<boolean>(false);
+  const [articleNotFound, setArticleNotFound] = useState<boolean>(false);
 
   useEffect(() => {
     if (route.page === 'article') {
@@ -41,10 +43,12 @@ export default function App() {
       if (!targetSlugOrId) {
         setLiveArticleDetail(null);
         setLoadingArticle(false);
+        setArticleNotFound(true);
         return;
       }
 
       setLoadingArticle(true);
+      setArticleNotFound(false);
       let isMounted = true;
 
       // 1. Dynamic API fetch first (by ID or slug)
@@ -55,6 +59,7 @@ export default function App() {
           if (article) {
             setLiveArticleDetail(article);
             setLoadingArticle(false);
+            setArticleNotFound(false);
           } else {
             return newsService.getArticleBySlug(targetSlugOrId);
           }
@@ -64,17 +69,30 @@ export default function App() {
           if (bySlugArticle) {
             setLiveArticleDetail(bySlugArticle);
             setLoadingArticle(false);
+            setArticleNotFound(false);
           } else {
-            // 2. Fallback to static articles
+            // 2. Check static fallback only if matching ID exists
             const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
-            setLiveArticleDetail(local || null);
+            if (local) {
+              setLiveArticleDetail(local);
+              setArticleNotFound(false);
+            } else {
+              setLiveArticleDetail(null);
+              setArticleNotFound(true);
+            }
             setLoadingArticle(false);
           }
         })
         .catch(() => {
           if (!isMounted) return;
           const local = getArticleBySlug(targetSlugOrId) || getArticleById(targetSlugOrId);
-          setLiveArticleDetail(local || null);
+          if (local) {
+            setLiveArticleDetail(local);
+            setArticleNotFound(false);
+          } else {
+            setLiveArticleDetail(null);
+            setArticleNotFound(true);
+          }
           setLoadingArticle(false);
         });
 
@@ -84,6 +102,7 @@ export default function App() {
     } else {
       setLiveArticleDetail(null);
       setLoadingArticle(false);
+      setArticleNotFound(false);
     }
   }, [route.page, route.params.slug, route.params.id]);
 
@@ -172,26 +191,38 @@ export default function App() {
           getArticleBySlug(targetSlugOrId) ||
           getArticleById(targetSlugOrId);
 
-        if (!article) {
-          if (loadingArticle) {
-            return (
-              <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-stone-500 font-sans">
-                <div className="w-8 h-8 border-3 border-red-700 border-t-transparent rounded-full animate-spin mb-3" />
-                <p className="text-sm font-medium">बातमी उघडत आहे...</p>
-              </div>
-            );
-          }
+        if (loadingArticle && !article) {
           return (
-            <HomePage
-              onSelectArticle={handleSelectArticle}
-              onSelectCategory={handleSelectCategory}
-              onNavigateEpaper={handleNavigateEpaper}
-              onNavigateContact={handleNavigateContact}
-              isBookmarked={isBookmarked}
-              onToggleBookmark={toggleBookmark}
-            />
+            <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-stone-500 font-sans">
+              <div className="w-8 h-8 border-3 border-red-700 border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="text-sm font-medium">बातमी उघडत आहे...</p>
+            </div>
           );
         }
+
+        if (!article || articleNotFound) {
+          return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto font-sans">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-950/50 rounded-full flex items-center justify-center mb-4 text-red-600 dark:text-red-400">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100 mb-2">
+                ही बातमी सध्या उपलब्ध नाही
+              </h2>
+              <p className="text-sm text-stone-600 dark:text-stone-400 mb-6 leading-relaxed">
+                सदर बातमी काढून टाकण्यात आली असावी किंवा अद्याप प्रसिद्ध झालेली नसावी. (This story is currently unavailable or has not been published.)
+              </p>
+              <button
+                onClick={handleNavigateHome}
+                className="px-5 py-2.5 bg-red-700 hover:bg-red-800 text-white rounded font-medium text-sm transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                मुख्यपृष्ठावर परत जा
+              </button>
+            </div>
+          );
+        }
+
         return (
           <ArticleDetailPage
             article={article}
@@ -294,6 +325,7 @@ export default function App() {
       {/* 1. Broadsheet Newspaper Top Header */}
       <TopHeader
         currentCategorySlug={currentCategorySlug}
+        isArticlePage={route.page === 'article'}
         onSelectCategory={handleSelectCategory}
         onOpenSearch={() => setIsSearchOpen(true)}
         onNavigateHome={handleNavigateHome}
@@ -311,8 +343,8 @@ export default function App() {
         bookmarksCount={bookmarks.length}
       />
 
-      {/* 2. Breaking Weekly Ticker */}
-      <BreakingTicker onSelectArticle={handleSelectArticle} />
+      {/* 2. Breaking Weekly Ticker (Hidden while reading an article for maximal screen space) */}
+      {route.page !== 'article' && <BreakingTicker onSelectArticle={handleSelectArticle} />}
 
       {/* 3. Main Content View */}
       <main className="flex-1">{renderCurrentPage()}</main>
